@@ -1,391 +1,1389 @@
-# Agent Learning Hub
+# Agent Internship Roadmap — Execution-First Revision
 
-A curated AI Agent learning roadmap for people who want to build useful, reliable agents instead of collecting random links.
+面向对象：计算机专业大三学生。
 
-这个仓库只维护一个核心展示面：README。目标是把社区里优秀分享、官方博客、论文、开源项目和真实工程经验，整理成一份可以照着执行的 AI Agent 学习 todo list。
+目标：从现在开始系统学习 Agent 技术栈，到九月初具备投递 Agent / LLM 应用 / AI 工程实习的项目能力、工程表达能力和面试答辩能力。
 
-## Maintainer
+这不是一份 Agent 生态百科，也不是框架速成清单。这是一份面向实习求职的工程路线。核心原则是：
 
-Curated by [陈思州](https://github.com/jjyaoao) (Datawhale 成员) <a href="https://www.xiaohongshu.com/user/profile/67b9cc34000000000e013517" target="_blank"><img alt="Static Badge" src="https://img.shields.io/badge/Rednote-小红书-e93c49"></a>
+```text
+少读泛资源，多做可运行、可测试、可解释、可复现的工程项目。
+```
 
-## How To Use
+本执行版做三个硬调整：
 
-- 如果你是新手：按「Learning Todo List」从上到下做，每完成一项就打勾。
-- 如果你已经会 LLM 应用：从 Stage 2 或 Stage 3 开始，重点补 Agent loop、工具调用、评测和工程化。
-- 如果你想做项目：直接看「Project Ladder」，每一档做一个可运行作品。
-- 如果你只想找资料：看「Curated Resources」，优先读官方文档和经典论文。
+1. **贯穿式 Harness**：`Agent Harness Mini` 从 Stage 1 开始持续演化，`minimal-agent-loop` 不再单独建项目，避免前期代码被丢弃或重写。
+2. **评测、追踪、安全前移**：eval、trace、permission/safety 不再放到后期补材料，而是从 Stage 1 开始随项目一起维护。
+3. **第三项目条件化**：九月前默认只保证两个强项目：`Agent Harness Mini` 和 `RAG / Research Agent`。`Coding Review Agent` / `Web Research Agent` 只有在前两个项目通过阶段门槛后才启动；MCP / Skill 只保留为 1-2 天轻量展示。
 
-## What To Learn Now
+---
 
-Agent 领域变化很快。当前更值得投入的不是老式“角色扮演多 agent 框架”，而是这些更贴近真实生产力的方向：
+## 0. Final Target Outcome
+
+到九月初，你应该能证明自己具备以下能力：
+
+1. 能从零实现一个最小 Agent loop。
+2. 能设计和执行 tool calling / function calling。
+3. 能实现 tool registry、schema validation、timeout、retry、permission gate。
+4. 能构建一个带引用、带 citation verifier、带失败分析的 RAG / Research Agent。
+5. 能为 Agent 写固定 eval cases，并记录 success rate、failure type、latency、cost、tool calls。
+6. 能用 trace 解释一次 Agent 运行过程中的 LLM call、tool call、state change 和 failure。
+7. 能完成至少两个可运行项目，并在简历和面试中讲清楚工程取舍。
+
+最终推荐产出：
+
+| Project | Purpose | Priority | Target Quality |
+| --- | --- | --- | --- |
+| Agent Harness Mini | 展示你理解 Agent 底层机制 | P0 必做 | 可运行、可测试、带 CLI、带 JSONL trace、带 eval runner |
+| RAG / Research Agent | 展示检索、引用、grounding、评测能力 | P0 必做 | 支持 ingestion、retrieval、citation verifier、unanswerable cases、failure analysis |
+| Coding Review Agent | 展示工具调用、代码分析、工程落地能力 | P1 条件选做 | 只有在两个 P0 项目通过 Week 9 gate 后启动 |
+| Web Research Agent | 展示搜索、筛选、引用、报告生成能力 | P1 条件替代 | 可替代 Coding Review Agent，但不和它同时做 |
+| MCP / Skill Demo | 展示你了解现代 Agent 生态 | P2 轻量选做 | 1-2 天完成，不作为主项目 |
+
+推荐最终组合：
+
+```text
+默认交付：Agent Harness Mini + RAG / Research Agent
+条件加强：Coding Review Agent 或 Web Research Agent 二选一
+轻量展示：MCP / Skill Demo，只在两个 P0 项目稳定后做
+```
+
+执行口径：
+
+```text
+两个强项目 > 三个半成品项目。
+```
+
+---
+
+## 1. Core Positioning
+
+最终简历定位可以写成：
+
+```text
+CS undergraduate focused on LLM agent engineering. Built a minimal agent harness and a document-grounded RAG agent with structured tool calling, tracing, evaluation, citation verification, and safety controls.
+```
+
+中文表达：
+
+```text
+我理解 Agent 的工程边界，能实现工具调用、状态管理、权限控制、trace 和 eval，并能把它们落到可运行项目里。
+```
+
+重点不是说“我学过很多 Agent 框架”，而是证明：
+
+```text
+我能把 Agent 从 demo 做成一个可调试、可评测、可复现的小型工程系统。
+```
+
+---
+
+## 2. What To Learn First
+
+优先级如下：
 
 | Priority | Learn | Why |
 | --- | --- | --- |
-| 1 | Claude Code / Codex-style coding agents | 真实代码库、shell、文件编辑、测试、权限、上下文压缩，是最好的 agent 工程样本。 |
-| 2 | Agent harness engineering | agent 的能力很大一部分来自 harness：工具协议、权限、状态、反馈、回放、CI、评测。 |
-| 3 | OpenClaw / Hermes-style personal agents | 长运行、本地优先、跨应用、记忆、skills、消息入口，更像“个人操作系统”。 |
-| 4 | Skills / MCP / A2A / ACP | skills 负责能力复用，MCP 连接工具，A2A 连接 agent，ACP 连接宿主应用。 |
-| 5 | Evaluation and safety | 没有 eval、trace、权限边界的 agent 只能算 demo。 |
+| 1 | Minimal Agent Loop | 不理解 loop，就只是在调框架 API。 |
+| 2 | Tool Calling | Agent 的核心能力来自可控工具执行。 |
+| 3 | Tool Harness | 真正的工程能力在工具注册、权限、状态、trace、eval。 |
+| 4 | RAG With Citations | 很多实习项目本质是企业知识库 / 搜索 / 报告生成。 |
+| 5 | Evaluation | 没有 eval 的 Agent 只能算 demo。 |
+| 6 | Coding / Research Agent Pattern | 代码审查、搜索研究、报告生成是高价值落地方向。 |
 
-不建议把精力重押在已经泛化成模板的老式 crew/role-play 框架上。它们可以了解，但不应成为主线。
+暂时不要重押：
 
-## Learning Todo List
+| Topic | Treatment |
+| --- | --- |
+| Role-play multi-agent frameworks | 了解即可，不作为主线。 |
+| Personal always-on agents | 九月前不深挖。 |
+| Browser / computer-use agents | 除非明确想做该方向，否则选学。 |
+| A2A / ACP | 知道用途即可，不需要深入协议细节。 |
+| 大量论文综述 | 只读关键论文摘要和核心思想。 |
+| 复杂 MCP 生态 | 只做轻量 demo，优先级低于主项目。 |
+| 只会调 LangChain / LlamaIndex | 不足以证明 Agent 工程能力，必须有手写核心组件。 |
 
-### Stage 0: Understand What An Agent Is
+---
+
+## 3. How To Use This Roadmap
+
+每个阶段都遵循同一结构：
+
+1. 先读 1-2 个必看资料，理解概念边界。
+2. 再做一个最小实现，不要先上复杂框架。
+3. 每个实现都接入最小 eval 和 trace。
+4. 最后对照成熟框架或开源项目，看别人如何工程化。
+5. 每个阶段都必须留下一个可检查产出。
+
+资料优先级：
+
+| Type | Meaning |
+| --- | --- |
+| Must Read | 必看。只看这些也能完成本阶段。 |
+| Hands-on | 动手入口。优先跟着做或参考实现。 |
+| Optional | 有余力再看，不影响主线进度。 |
+| Avoid For Now | 当前阶段不建议投入时间。 |
+
+每周结束必须回答三个问题：
+
+```text
+1. 本周新增了什么可运行能力？
+2. 本周新增了哪些 eval cases？
+3. 本周发现了哪些失败模式？
+```
+
+阶段门槛：
+
+```text
+Gate A — Week 5 结束：
+Agent Harness Mini 必须能通过 CLI 运行，至少有 15 条 eval cases，并能生成 JSONL trace。
+
+Gate B — Week 9 结束：
+RAG / Research Agent 必须有 citation verifier、至少 20 条 RAG eval cases、至少 5 条 unanswerable cases，并能展示 3 个失败案例。
+
+Gate C — Week 10 开始前：
+只有 Gate A 和 Gate B 都通过，才启动 Coding Review Agent 或 Web Research Agent。
+否则取消第三项目，把 Week 10-12 全部用于补两个 P0 项目的 README、eval、trace、examples、复现环境。
+```
+
+---
+
+# 4. Learning Path
+
+## Stage 0: Understand Agent Boundaries
+
+目标：知道什么时候应该用 Agent，什么时候不应该用。
+
+### Checklist
 
 - [ ] 区分 chatbot、workflow、agent、multi-agent。
-- [ ] 理解 agent 的基本循环：observe -> think -> act -> observe。
-- [ ] 明白什么时候不该用 agent：任务可预测、流程稳定、普通脚本能解决时，agent 反而增加不确定性。
-- [ ] 读完 [Anthropic: Building effective agents](https://www.anthropic.com/engineering/building-effective-agents)。
-- [ ] 读完 [OpenAI: A practical guide to building agents](https://openai.com/business/guides-and-resources/a-practical-guide-to-building-ai-agents/)。
+- [ ] 理解基本循环：observe -> think/plan -> act -> observe。
+- [ ] 明白什么时候不该用 agent：任务稳定、步骤确定、普通脚本能解决时，不要引入 agent。
+- [ ] 写一页笔记：我的目标场景为什么需要 agent，而不是普通 workflow？
 
-产出：写一页短笔记，回答「我的场景为什么需要 agent，而不是普通 workflow？」
+### Must Read
 
-### Stage 1: Build A Minimal Agent Loop
+1. Anthropic: Building Effective Agents  
+   重点看：workflow 和 agent 的区别、什么时候用 simple workflow、什么时候需要 autonomous agent。
 
-- [ ] 会用一个 LLM API 完成普通对话。
-- [ ] 会让模型输出结构化 JSON。
-- [ ] 会定义一个工具函数，例如 search、calculator、read_file。
-- [ ] 会解析模型的 tool call / function call。
-- [ ] 会执行工具，并把工具结果喂回模型。
-- [ ] 会给 agent loop 加最大步数、超时和错误处理。
+2. OpenAI: A Practical Guide to Building Agents  
+   重点看：agent 的定义、适合场景、tool design、guardrails。
 
-推荐阅读：
+### Optional
 
-- [OpenAI Function Calling](https://platform.openai.com/docs/guides/function-calling)
-- [Gemini API Function Calling](https://ai.google.dev/gemini-api/docs/function-calling)
-- [Claude Tool Use](https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/overview)
+1. Lilian Weng: LLM Powered Autonomous Agents  
+   用途：建立 agent 架构全局视角。只看 planning、memory、tool use 三部分。
 
-产出：一个 50-150 行的最小 agent，可以选择工具、执行工具、返回最终答案。
+2. ReAct Paper  
+   用途：理解 reasoning + acting 的基本范式。只读 abstract、introduction 和图示。
 
-### Stage 2: Learn Tool Use, RAG, And Memory
+### Output
 
-- [ ] 会做检索增强生成：chunk、embed、retrieve、answer with citations。
-- [ ] 会把搜索、数据库、文件、浏览器、代码执行接成工具。
-- [ ] 会区分短期上下文、会话记忆、长期记忆。
-- [ ] 会处理工具失败、空结果、重复调用、幻觉引用。
-- [ ] 会让 agent 在回答里给出来源或证据。
+```text
+notes/when-to-use-agent.md
+```
 
-推荐阅读：
+### Acceptance Criteria
 
-- [LlamaIndex Agents](https://docs.llamaindex.ai/en/stable/use_cases/agents/)
-- [LangChain Docs](https://docs.langchain.com/)
-- [Gemini API Code Execution](https://ai.google.dev/gemini-api/docs/code-execution)
-- [Model Context Protocol](https://modelcontextprotocol.io/)
+- 能举出 3 个适合 Agent 的任务。
+- 能举出 3 个不适合 Agent 的任务。
+- 能解释 workflow、agent、multi-agent 的区别。
+- 能解释为什么“能聊天”不等于“是 Agent”。
 
-开源项目参考：
+### Suggested Note Template
 
-| Project | Why It Fits Stage 2 |
-| --- | --- |
-| [GPT Researcher](https://github.com/assafelovic/gpt-researcher) | 最接近“资料研究助手”的成品：搜索、抓取、筛选、引用、生成长报告。 |
-| [Open Deep Research](https://github.com/langchain-ai/open_deep_research) | LangGraph 写的 deep research 示例，适合学多轮搜索、状态管理和引用输出。 |
-| [STORM](https://github.com/stanford-oval/storm) | Stanford OVAL 的研究写作系统，适合学 outline、question asking、多视角资料综合。 |
-| [Khoj](https://github.com/khoj-ai/khoj) | 个人 second brain，适合学本地文档、网页、语义搜索和长期记忆。 |
-| [Onyx](https://github.com/onyx-dot-app/onyx) | 企业级 RAG/search assistant，适合学 connectors、hybrid search、权限和生产化。 |
-| [AnythingLLM](https://github.com/Mintplex-Labs/anything-llm) | 本地 RAG + agents 产品，适合初学者快速理解完整应用形态。 |
-| [RAGFlow](https://github.com/infiniflow/ragflow) | 文档理解型 RAG 引擎，适合学 ingestion、chunking、retrieval、grounded answer。 |
-| [mem0](https://github.com/mem0ai/mem0) | 记忆层组件，适合学如何给 agent 加长期 memory。 |
-| [Letta](https://github.com/letta-ai/letta) | 面向 stateful agents 的 memory/context 平台，适合学上下文管理。 |
-
-产出：一个资料研究助手，输入主题后自动搜索、筛选、总结并输出引用链接。
-
-### Stage 3: Study One Modern Agent Harness
-
-先选一个现代 agent 系统学深。这里的重点不是“框架 API 怎么调”，而是它如何组织工具、上下文、权限、状态、日志、子任务和反馈。
-
-| System | Best For | Learn This If You Want To |
+| Task | Workflow or Agent? | Reason |
 | --- | --- | --- |
-| [Claude Code Docs](https://code.claude.com/docs/en/overview) | Coding agent product | 学真实 coding agent 的 CLI、工具、权限、hooks、subagents、MCP。 |
-| [learn-claude-code](https://github.com/shareAI-lab/learn-claude-code) | From-scratch agent harness | 从 0 到 1 复刻 Claude Code-like harness。 |
-| [claw0](https://github.com/shareAI-lab/claw0) | From-scratch OpenClaw gateway | 从 agent loop 一路构建 session、channel、gateway、memory、heartbeat、delivery、resilience、concurrency。 |
-| [hello-agents](https://github.com/datawhalechina/hello-agents) | Chinese agent tutorial | 从零开始构建智能体，适合系统补 Agent 原理与实践。 |
-| [OpenClaw](https://github.com/openclaw/openclaw) | Local-first personal agent | 学本地长运行 agent、skills、消息入口、系统工具和安全边界。 |
-| [Hermes Agent](https://github.com/NousResearch/hermes-agent) | Self-hosted growing agent | 学长期记忆、skills、toolsets、多平台消息网关和迁移能力。 |
-| [CyberClaw](https://github.com/ttguy0707/CyberClaw) | Transparent agent architecture | 学全行为审计、两段式安全调用、双水位记忆和心跳任务。 |
-| [LangGraph](https://langchain-ai.github.io/langgraph/) | Stateful graph orchestration | 学状态图、可恢复执行和可控编排。 |
+| 自动格式化代码 | Workflow | 步骤确定，规则清晰。 |
+| 根据多个网页写研究报告 | Agent | 需要动态搜索、筛选、判断和迭代。 |
+| 定时发日报 | Workflow | 触发条件和输出格式固定。 |
+| 修复未知 bug | Agent | 需要观察、尝试、执行测试、迭代。 |
 
-- [ ] 读懂一个 agent harness 的目录结构。
-- [ ] 找出它的 agent loop、tool registry、permission gate、session store、context compaction。
-- [ ] 跑通它的最小示例，并加一个你自己的工具。
-- [ ] 观察一次完整 trace，解释每一步为什么发生。
-- [ ] 把同一个任务分别用「裸 agent loop」和「harness」实现，对比差异。
+---
 
-产出：一个可调试的 agent harness demo，包含 README、运行步骤、示例输入输出和失败记录。
+## Stage 1: Agent Harness Mini v0 — Minimal Agent Loop
 
-### Stage 4: Multi-Agent Is Coordination, Not Magic
+目标：不用框架，从零写一个最小 Agent loop。这个阶段开始的代码直接放进 `projects/agent-harness-mini/`，后续持续演化，不再另建零散项目。
 
-- [ ] 理解 planner / executor / reviewer / critic / router 等常见角色。
-- [ ] 学会用 supervisor 或 graph 管理多 agent，而不是让 agent 随便聊天。
-- [ ] 会定义每个 agent 的职责边界、输入输出 schema、停止条件。
-- [ ] 会处理循环、争论、任务漂移、上下文膨胀。
-- [ ] 会判断什么时候单 agent 更好。
+### Checklist
 
-推荐阅读：
+- [ ] 调用一个 LLM API 完成普通对话。
+- [ ] 让模型输出结构化 JSON。
+- [ ] 定义至少 2 个工具，例如 `calculator`、`read_file`。
+- [ ] 解析 tool call / function call。
+- [ ] 执行工具并把结果作为 observation 喂回模型。
+- [ ] 加入 `max_steps`，防止死循环。
+- [ ] 保存最小 trace。
+- [ ] 写 5 个 eval cases。
+- [ ] 记录至少一种失败类型，例如 tool error 或 max_steps exceeded。
 
-- [Claude Code Subagents](https://code.claude.com/docs/en/sub-agents)
-- [Claude Code Hooks](https://code.claude.com/docs/en/hooks)
-- [Google Agent Development Kit](https://google.github.io/adk-docs/)
-- [Agent2Agent Protocol](https://google-a2a.github.io/A2A/specification/)
-- [Agent Client Protocol](https://agentclientprotocol.com/)
+### Must Read
 
-产出：一个小型多 agent 系统，例如 research -> write -> review -> revise。
+1. OpenAI Function Calling  
+   重点看：tools schema、arguments、模型如何请求调用函数、如何把函数结果返回模型。
 
-### Stage 5: Learn Skills, Protocols, And Capability Packaging
+2. OpenAI Using Tools  
+   重点看：function calling 与 hosted tools 的区别。当前阶段只做自定义 function tools。
 
-现代 agent 的能力不只来自模型和工具，也来自可复用的 skills。一个好的 skill 像一份小型操作手册：告诉 agent 什么时候使用、怎么使用、需要哪些脚本/资源、如何验证结果。
+3. Claude Tool Use Overview  
+   重点看：Claude 的 tool use 消息格式。目的不是同时写两套实现，而是比较不同厂商的工具调用抽象。
 
-- [ ] 理解 Skill 和 Tool 的区别：tool 是可调用接口，skill 是可复用流程知识。
-- [ ] 理解 Skill 和 Prompt 的区别：prompt 通常是一次性指令，skill 是可发现、可版本化、可分发的能力包。
-- [ ] 理解 Skill 和 MCP 的区别：MCP 接入外部工具/数据源，skill 告诉 agent 如何完成一类任务。
-- [ ] 阅读 Claude Code Skills 的文件结构和触发机制。
-- [ ] 阅读 OpenClaw Skills 的加载、作用域和安全边界。
-- [ ] 写一个最小 `SKILL.md`，包含 name、description、何时使用、步骤、验收标准。
-- [ ] 给 skill 加一个脚本或模板文件，并说明 agent 什么时候才需要加载它。
-- [ ] 给 skill 写一个 smoke test，验证它是否真的提升任务成功率。
+### Hands-on
 
-推荐阅读：
+先实现最小逻辑：
 
-- [Claude Code Skills](https://code.claude.com/docs/en/skills)
-- [Claude Agent Skills](https://docs.claude.com/en/docs/agents-and-tools/agent-skills)
-- [Claude Code Agent SDK Skills](https://code.claude.com/docs/en/agent-sdk/skills)
-- [OpenClaw Skills](https://github.com/openclaw/openclaw/blob/main/docs/tools/skills.md)
-- [Model Context Protocol](https://modelcontextprotocol.io/)
-- [Agent2Agent Protocol](https://google-a2a.github.io/A2A/specification/)
-- [Agent Client Protocol](https://agentclientprotocol.com/)
+```text
+User query
+  -> LLM decides tool
+  -> execute tool
+  -> return observation
+  -> LLM final answer
+```
 
-产出：一个可复用 skill，例如 code-review、research-report、migration-helper、pdf-extraction 或 release-note-writer。
+禁止一开始使用 LangChain / LangGraph / Agents SDK。
 
-### Stage 6: Browser And Computer-Use Agents
+### Minimal Directory
 
-- [ ] 理解 browser agent 和普通 API tool 的区别。
-- [ ] 会用 Playwright 或 browser-use 做网页观察和点击。
-- [ ] 会给浏览器操作加安全限制：不登录敏感账号、不越权、不绕过平台规则。
-- [ ] 会处理页面变化、弹窗、加载失败、元素定位失败。
-- [ ] 会记录截图、DOM、动作日志，方便复盘。
+```text
+projects/agent-harness-mini/
+  README.md
+  pyproject.toml
+  agent/
+    loop.py
+    tools.py
+  tools/
+    calculator.py
+    file_reader.py
+  evals/
+    cases.yaml
+  traces/
+    .gitkeep
+  examples/
+    run_basic.py
+```
 
-推荐阅读：
+### Minimal Eval Cases
 
-- [Claude Computer Use](https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/computer-use-tool)
-- [browser-use](https://github.com/browser-use/browser-use)
-- [WebArena](https://arxiv.org/abs/2307.13854)
-- [VisualWebArena](https://arxiv.org/abs/2401.13649)
+```yaml
+- id: loop_001
+  task: "What is 123 * 456?"
+  expected_tools: ["calculator"]
+  success_criteria:
+    - "uses calculator"
+    - "final answer contains 56088"
 
-产出：一个只操作公开网页的 browser agent，例如打开网页、提取信息、生成摘要。
+- id: loop_002
+  task: "Read examples/sample.txt and summarize it."
+  expected_tools: ["read_file"]
+  success_criteria:
+    - "uses read_file"
+    - "summary is grounded in file content"
+```
 
-### Stage 7: Evaluation, Observability, And Safety
+### Acceptance Criteria
 
-- [ ] 为 agent 准备固定测试集，而不是只看 demo。
-- [ ] 记录成功率、失败原因、工具调用次数、成本、延迟。
-- [ ] 会看 trace，知道失败发生在 prompt、工具、检索、模型还是状态管理。
-- [ ] 给危险工具加人工确认，例如发邮件、删文件、付款、发布内容。
-- [ ] 了解 prompt injection、data exfiltration、tool abuse 等风险。
-- [ ] 会用回归测试防止 prompt 或工具改动后能力退化。
+- 核心 loop 逻辑不超过 150 行。
+- 至少支持 2 个工具。
+- 工具调用失败时不会崩溃。
+- 有 5 个 eval cases。
+- 每次运行生成 trace。
+- eval cases 覆盖 tool call 正确性、loop 停止、工具失败。
+- 能解释 agent loop 中每一步的输入输出。
 
-推荐阅读：
+---
 
-- [OpenAI Evals](https://platform.openai.com/docs/guides/evals)
-- [OpenAI Agent platform](https://openai.com/agent-platform/)
-- [LangSmith](https://docs.smith.langchain.com/)
-- [AgentBench](https://arxiv.org/abs/2308.03688)
-- [SWE-bench](https://arxiv.org/abs/2310.06770)
+## Stage 2: Agent Harness Mini v1 — Robust Tool Use
 
-产出：一个 agent eval 表格，至少包含 20 个任务、期望结果、实际结果、失败分类。
+目标：从“能调工具”升级到“可靠地调工具”。
 
-### Stage 8: Ship A Real Agent
+### Checklist
 
-- [ ] 有明确用户、明确任务、明确成功标准。
-- [ ] 有日志、trace、错误重试、超时、成本上限。
-- [ ] 有权限边界和人工确认机制。
-- [ ] 有部署方式：CLI、Web app、Slack bot、GitHub Action 或后台任务。
-- [ ] 有 README：怎么运行、怎么配置 key、怎么扩展工具、有哪些限制。
+- [ ] 设计 `Tool` 抽象。
+- [ ] 设计 `ToolRegistry`。
+- [ ] 每个工具都有 name、description、input schema、output schema。
+- [ ] 工具有 timeout。
+- [ ] 工具有 retry policy。
+- [ ] 工具有统一错误对象。
+- [ ] 工具错误至少区分 invalid input、timeout、permission denied、empty result、runtime error。
+- [ ] 对危险工具加入 permission gate。
+- [ ] 每次工具调用写入 JSONL trace。
+- [ ] eval cases 从 5 条扩展到 10 条。
 
-产出：一个别人能 clone 下来跑的 agent 项目。
+### Tool Abstraction
 
-## Project Ladder
+```python
+class Tool:
+    name: str
+    description: str
+    input_schema: dict
+    output_schema: dict
+    requires_permission: bool
+    timeout_seconds: int
+    retry_policy: dict
+```
 
-| Level | Project | What You Learn |
+### Tool Registry
+
+```python
+registry.register(calculator)
+registry.register(read_file)
+registry.register(write_file)
+registry.get("calculator")
+```
+
+### Unified Tool Result
+
+```json
+{
+  "ok": false,
+  "error_type": "timeout",
+  "message": "tool execution exceeded 5 seconds",
+  "data": null
+}
+```
+
+### Trace Event Example
+
+```json
+{
+  "run_id": "2026-xx-xx-abc123",
+  "step": 2,
+  "event_type": "tool_call",
+  "tool_name": "read_file",
+  "input": {"path": "README.md"},
+  "output": {"ok": true, "data": "..."},
+  "latency_ms": 42
+}
+```
+
+### Must Read
+
+1. OpenAI Function Calling  
+   第二遍阅读。重点不再是“怎么调用”，而是 schema 怎么写才不容易误调用。
+
+2. OpenAI Agents SDK: Tools  
+   重点看 function tools 的抽象方式。不要急着迁移到 SDK，先借鉴设计。
+
+3. Anthropic Tool Use Overview  
+   重点看 tool result 如何回传、模型如何继续推理。
+
+### Optional
+
+1. smolagents  
+   用途：参考轻量 agent 框架如何定义工具。
+
+2. LangChain Tools  
+   用途：参考成熟框架的 tool abstraction，但不要直接照搬。
+
+### Acceptance Criteria
+
+- 支持 3-5 个工具。
+- 每次工具调用都有 trace。
+- 错误能被 agent 继续处理，而不是直接中断。
+- 有 10 个 eval cases。
+- 至少一个工具需要 permission approval。
+- 能解释 schema、timeout、retry、permission 的设计取舍。
+
+---
+
+## Stage 3: Agent Harness Mini v2 — State, Trace, Eval Runner, CLI
+
+目标：把前两阶段的工具调用能力整理成一个真正可运行的小型 Agent harness。
+
+### Checklist
+
+- [ ] Agent loop。
+- [ ] Tool registry。
+- [ ] Session state。
+- [ ] Trace logger。
+- [ ] Permission gate。
+- [ ] Context management。
+- [ ] Max steps / timeout / retry。
+- [ ] Eval runner。
+- [ ] CLI interface。
+
+### Must Read
+
+1. LangGraph Overview  
+   重点看 stateful workflow、durable execution、human-in-the-loop、memory。目的不是立刻重写项目，而是学习 harness 应该承担哪些职责。
+
+2. OpenAI Agents SDK: Agents  
+   重点看 agent instructions、tools、handoffs、guardrails、structured outputs。
+
+3. OpenAI Agents SDK: Tracing  
+   重点看 trace 应记录 LLM generations、tool calls、handoffs、guardrails、自定义事件。
+
+### Recommended Directory Structure
+
+```text
+agent-harness-mini/
+  README.md
+  pyproject.toml
+  agent/
+    loop.py
+    tools.py
+    registry.py
+    permissions.py
+    tracing.py
+    session.py
+    context.py
+    evals.py
+    cli.py
+  tools/
+    calculator.py
+    file_reader.py
+    file_writer.py
+    web_search.py
+  evals/
+    cases.yaml
+    results.csv
+  traces/
+    .gitkeep
+  examples/
+    run_basic.py
+    sample_tasks.md
+  tests/
+    test_registry.py
+    test_tools.py
+    test_evals.py
+```
+
+### CLI Requirements
+
+```bash
+agent run "Read README and summarize risks"
+agent run --tools calculator,read_file "What is in examples/sample.txt?"
+agent eval evals/cases.yaml
+agent trace traces/2026-xx-xx-run-id.jsonl
+```
+
+### Eval Case Schema
+
+```yaml
+- id: harness_001
+  task: "Read examples/sample.txt and summarize it in three bullets."
+  expected_tools: ["read_file"]
+  disallowed_tools: ["write_file"]
+  success_criteria:
+    - "uses read_file exactly once"
+    - "does not invent file content"
+    - "final answer has three bullets"
+  failure_labels:
+    - prompt
+    - tool
+    - state
+    - permission
+```
+
+### Eval Result Schema
+
+```csv
+id,success,failure_type,tool_calls,latency_ms,cost_usd,notes
+harness_001,true,none,1,1800,0.003,passed
+```
+
+### Acceptance Criteria
+
+- 可以通过 CLI 运行。
+- 有 JSONL trace。
+- 有 eval runner。
+- 至少 15 条 eval cases，覆盖正常工具调用、工具失败、权限拒绝、重复调用、max_steps。
+- README 能让别人 clone 后 10 分钟内跑通。
+- 至少一个危险工具有 permission gate。
+- 有 `make test` / `make eval` 或等价命令。
+- 能用一张架构图解释模块关系。
+- 通过 Gate A 后才能进入 RAG 项目的深度开发。
+
+---
+
+## Stage 4: RAG / Research Agent v0 — Grounded QA With Citations
+
+目标：构建一个能基于文档回答问题并给出引用的 Agent。
+
+这个项目可以独立建 repo，也可以复用 `agent-harness-mini` 的 tool registry、trace logger 和 eval runner。推荐复用核心 harness，单独做一个 `rag-research-agent` 项目，展示“通用 agent harness 如何支撑具体应用”。
+
+### Checklist
+
+- [ ] 支持 PDF / Markdown / TXT ingestion。
+- [ ] 实现 chunking。
+- [ ] 使用 embedding 建索引。
+- [ ] 实现 retrieval。
+- [ ] 回答时附带 source / citation。
+- [ ] 处理检索为空的情况。
+- [ ] 避免 hallucinated citations。
+- [ ] 记录 query、retrieved chunks、final answer。
+- [ ] 写 20 个 QA eval cases。
+
+### Must Read
+
+1. LlamaIndex: Introduction to RAG  
+   重点看：为什么需要 RAG、ingestion、index、retrieval、response synthesis。
+
+2. LlamaIndex Starter Tutorial  
+   重点看：如何从文档构建 index 并 query。
+
+3. LangChain RAG Concepts  
+   重点看：retriever、document loader、text splitter、vector store 的职责边界。
+
+### Hands-on
+
+先实现最小版本：
+
+```text
+documents
+  -> chunks
+  -> embeddings
+  -> vector store
+  -> retrieve top-k chunks
+  -> answer with citations
+```
+
+然后补可靠性机制：
+
+1. 如果 top-k chunks 分数过低，回答“没有在资料中找到依据”。
+2. final answer 只能引用 retrieved chunks 中真实存在的 source id。
+3. trace 中保存 query、retrieved chunk ids、answer、citations。
+
+### Directory Structure
+
+```text
+rag-research-agent/
+  README.md
+  pyproject.toml
+  rag/
+    ingest.py
+    chunking.py
+    embeddings.py
+    index.py
+    retrieve.py
+    rerank.py
+    answer.py
+    citations.py
+    evals.py
+  data/
+    raw/
+    processed/
+  evals/
+    cases.yaml
+    results.csv
+  traces/
+    .gitkeep
+  examples/
+    sample_docs/
+    run_qa.py
+  docs/
+    failure-analysis.md
+```
+
+### Citation Format
+
+```text
+Answer sentence. [source: doc_a.md#chunk_003]
+```
+
+### Empty Retrieval Policy
+
+```text
+没有在资料中找到依据。
+```
+
+不要让模型在无证据时补全答案。
+
+### Acceptance Criteria
+
+- 至少支持上传 5 个文档。
+- 至少有 20 个 QA eval cases，覆盖 answerable、unanswerable、ambiguous、multi-hop。
+- 至少 5 个 unanswerable cases。
+- 每个回答必须包含引用，或者明确回答“没有在资料中找到依据”。
+- final answer 不能引用未检索到的 chunk。
+- README 中包含失败样例。
+- 能解释 chunk size、top-k、embedding model、rerank 的取舍。
+
+---
+
+## Stage 5: RAG / Research Agent v1 — Hybrid Retrieval, Rerank, Citation Verification
+
+目标：避免 RAG 项目停留在框架 demo，补上能体现工程能力的关键机制。
+
+### Checklist
+
+- [ ] 实现 BM25 或 keyword retrieval。
+- [ ] 实现 embedding retrieval。
+- [ ] 实现简单 hybrid retrieval。
+- [ ] 实现 rerank。
+- [ ] 实现 citation verifier。
+- [ ] 实现 failed retrieval analysis。
+- [ ] eval cases 覆盖 answerable、unanswerable、ambiguous、multi-hop 四类问题。
+
+### Hybrid Retrieval
+
+最低要求：
+
+```text
+hybrid_score = alpha * normalized_embedding_score + (1 - alpha) * normalized_bm25_score
+```
+
+不需要过早追求复杂系统，先让自己能解释：
+
+```text
+什么时候 keyword search 更可靠？
+什么时候 embedding retrieval 更可靠？
+为什么 hybrid retrieval 能减少漏检？
+```
+
+### Rerank
+
+可选实现方式：
+
+| Method | Difficulty | Use |
 | --- | --- | --- |
-| 1 | Calculator Agent | 最小 tool call loop |
-| 2 | Web Research Agent | 搜索、筛选、引用、总结 |
-| 3 | PDF QA Agent | RAG、chunk、retrieval、citation |
-| 4 | Coding Review Agent | 读取 diff、风险排序、测试建议 |
-| 5 | Browser Agent | 页面观察、点击、提取、失败恢复 |
-| 6 | Claude Code-like Nano Agent | shell、文件编辑、权限、session、compact |
-| 7 | OpenClaw-like Gateway | channel、routing、session、memory、heartbeat、delivery |
-| 8 | Reusable Skill Pack | SKILL.md、脚本、模板、触发条件、smoke test |
-| 9 | Multi-Agent Writer | planner、writer、reviewer 协作 |
-| 10 | Personal Agent | OpenClaw/Hermes-style 记忆、skills、消息入口 |
-| 11 | Production Harness | evals、trace、权限、CI、runner、回放 |
+| LLM rerank | 低 | 让模型判断 chunk relevance，成本较高。 |
+| Cross-encoder rerank | 中 | 更工程化，适合展示 retrieval pipeline。 |
+| Heuristic rerank | 低 | 根据 title match、keyword overlap、recency 简单排序。 |
 
-## Curated Resources
+### Citation Verifier
 
-### Official Guides And Blogs
+核心规则：
 
-| Resource | Why It Matters |
+```text
+final answer 中出现的每个 citation id 必须满足：
+1. citation id 存在于 retrieved chunks；
+2. citation id 对应 chunk 与该句答案有语义相关性；
+3. citation id 不能由模型自由生成。
+```
+
+最低实现：
+
+```python
+def verify_citations(answer, retrieved_chunk_ids):
+    cited_ids = extract_citation_ids(answer)
+    invalid = [cid for cid in cited_ids if cid not in retrieved_chunk_ids]
+    return {
+        "ok": len(invalid) == 0,
+        "invalid_citations": invalid,
+    }
+```
+
+### Failure Analysis Categories
+
+| Failure Type | Meaning |
 | --- | --- |
-| [Anthropic: Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) | Agent 设计入门必读，讲清 workflow 和 agent 的边界。 |
-| [Claude Code Overview](https://code.claude.com/docs/en/overview) | 当前最值得研究的 coding agent 产品文档入口。 |
-| [Claude Code Subagents](https://code.claude.com/docs/en/sub-agents) | 学任务拆分、上下文隔离、专用子代理。 |
-| [Claude Code Hooks](https://code.claude.com/docs/en/hooks) | 学如何拦截、校验和扩展 agent 行为。 |
-| [Claude Code GitHub Actions](https://docs.claude.com/en/docs/claude-code/github-actions) | 学 coding agent 如何进入 PR / issue 工作流。 |
-| [Claude Code Advanced Patterns](https://resources.anthropic.com/hubfs/Claude%20Code%20Advanced%20Patterns_%20Subagents%2C%20MCP%2C%20and%20Scaling%20to%20Real%20Codebases.pdf) | Anthropic 官方材料，覆盖 subagents、MCP 和真实代码库扩展。 |
-| [OpenAI: A practical guide to building agents](https://openai.com/business/guides-and-resources/a-practical-guide-to-building-ai-agents/) | 面向产品和工程团队的 agent 落地指南。 |
-| [OpenAI: New tools for building agents](https://openai.com/index/new-tools-for-building-agents/) | Responses API、Agents SDK、工具和 tracing 的官方介绍。 |
-| [OpenAI Agents SDK](https://platform.openai.com/docs/guides/agents-sdk/) | OpenAI 原生 agent 开发入口。 |
-| [Claude Tool Use](https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/overview) | Claude 工具调用机制。 |
-| [Claude Computer Use](https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/computer-use-tool) | 电脑操作类 agent 的官方参考。 |
-| [Gemini Function Calling](https://ai.google.dev/gemini-api/docs/function-calling) | Gemini 工具调用官方文档。 |
-| [Gemini Code Execution](https://ai.google.dev/gemini-api/docs/code-execution) | Gemini 代码执行工具。 |
-| [Google Agent Development Kit](https://google.github.io/adk-docs/) | Google 的 agent 开发框架。 |
-| [Model Context Protocol](https://modelcontextprotocol.io/) | Agent 连接工具和数据源的重要协议。 |
+| ingestion | 文档解析失败、PDF 表格丢失、编码错误。 |
+| chunking | chunk 太短或太长，答案证据被切碎。 |
+| retrieval | 没有检索到相关 chunk。 |
+| rerank | reranker 把相关 chunk 排低。 |
+| citation | 引用了不存在或无关的 source。 |
+| synthesis | 检索正确但回答总结错误。 |
+| abstention | 应该回答但错误拒答，或应该拒答但编造答案。 |
 
-### Project Map
+### Acceptance Criteria
 
-项目不要按 star 数乱读，建议按学习目的分层：
+- 支持 embedding + keyword hybrid retrieval。
+- 有 citation verifier。
+- 至少 20 个 RAG eval cases，其中包含 5 个 unanswerable cases。
+- eval 结果记录 success rate、failure type、latency、cost、retrieved chunk ids。
+- README 中展示至少 3 个失败案例和修复思路。
+- 能解释为什么你的 RAG 方案不是简单框架 demo。
+- 通过 Gate B 后才允许启动第三项目。
 
-| Layer | Study These | Learn |
-| --- | --- | --- |
-| Build From Scratch | [learn-claude-code](https://github.com/shareAI-lab/learn-claude-code), [claw0](https://github.com/shareAI-lab/claw0), [hello-agents](https://github.com/datawhalechina/hello-agents) | agent loop、tool registry、session、context compaction、gateway、trace、subagents。 |
-| Personal / Always-On Agents | [OpenClaw](https://github.com/openclaw/openclaw), [Hermes Agent](https://github.com/NousResearch/hermes-agent), [CyberClaw](https://github.com/ttguy0707/CyberClaw) | 长运行、skills、记忆、消息入口、权限、安全审计。 |
-| Coding Agents | [Claude Code](https://code.claude.com/docs/en/overview), [OpenAI Codex](https://github.com/openai/codex), [OpenCode](https://github.com/opencode-ai/opencode), [OpenHands](https://github.com/All-Hands-AI/OpenHands), [SWE-agent](https://github.com/SWE-agent/SWE-agent) | 真实代码库编辑、shell、测试、sandbox、PR 工作流。 |
-| Deep Research / RAG Agents | [DeerFlow](https://github.com/bytedance/deer-flow), [LlamaIndex](https://docs.llamaindex.ai/) | 搜索、抓取、检索、rerank、引用、报告生成。 |
-| Tutorial Encyclopedias | [GenAI_Agents](https://github.com/NirDiamant/GenAI_Agents), [hello-agents](https://github.com/datawhalechina/hello-agents), [smolagents](https://github.com/huggingface/smolagents), [agents-towards-production](https://github.com/NirDiamant/agents-towards-production) | 横向看 ReAct、Plan-and-Execute、Multi-Agent、production patterns。 |
-| Browser / Multimodal Agents | [browser-use](https://github.com/browser-use/browser-use), [UI-TARS-desktop](https://github.com/bytedance/UI-TARS-desktop) | 浏览器/桌面操作、视觉理解、动作空间、失败恢复。 |
+---
 
-### Skills, Protocols, And Tooling
+## Stage 6: Conditional Third Project — Coding Review Agent 或 Web Research Agent（二选一）
 
-| Concept | Learn From | What It Solves |
-| --- | --- | --- |
-| Skills | [Claude Code Skills](https://code.claude.com/docs/en/skills), [OpenClaw Skills](https://github.com/openclaw/openclaw/blob/main/docs/tools/skills.md) | 把一类任务的流程知识、脚本、模板和验收标准打包成可复用能力。 |
-| MCP | [Model Context Protocol](https://modelcontextprotocol.io/) | 让 agent 标准化连接外部工具、数据源和服务。 |
-| A2A | [Agent2Agent Protocol](https://google-a2a.github.io/A2A/specification/) | 让不同 agent 之间发现、通信和协作。 |
-| ACP | [Agent Client Protocol](https://agentclientprotocol.com/) | 让编辑器、终端、IDE、宿主应用和 agent 之间形成统一接口。 |
-| Skill Quality | [SWE-Skills-Bench](https://arxiv.org/abs/2603.15401), [Agent Skills analysis](https://arxiv.org/abs/2602.08004) | 评估 skills 是否真的提升成功率，而不是制造新的 prompt 噪声。 |
+目标：在两个 P0 项目已经稳定的前提下，做一个更贴近实习岗位的应用型 Agent 项目。
 
-### Modern Agent Systems
+启动条件：
 
-| System | Why It Is Useful |
+```text
+只有同时满足以下条件才做 Stage 6：
+1. Agent Harness Mini 已有 CLI、trace、eval runner、permission gate。
+2. RAG / Research Agent 已有 citation verifier、20+ eval cases、5+ unanswerable cases。
+3. 两个 P0 项目的 README 都能让别人独立跑通。
+```
+
+如果不满足，直接跳过 Stage 6，把时间投入两个 P0 项目的复现环境、README、失败分析和面试表达。
+
+你不需要两个都做。根据个人背景选择一个：
+
+```text
+如果你更想投 AI 工程 / 软件工程 Agent：选 Coding Review Agent。
+如果你更想投 LLM 应用 / 知识工作流 / research assistant：选 Web Research Agent。
+```
+
+---
+
+### Option A: Coding Review Agent
+
+#### Feature Scope
+
+- 读取 Git diff。
+- 识别潜在 bug、security risk、test gap、maintainability issue。
+- 可选：调用 linter / unit tests。
+- 输出结构化 review。
+- 支持 CLI 或 GitHub Action。
+- 记录 trace。
+- 评估误报和漏报。
+
+#### Checklist
+
+- [ ] 解析 diff。
+- [ ] 按文件和风险类型分类。
+- [ ] 调用静态检查工具或测试命令。
+- [ ] 输出 JSON + Markdown review。
+- [ ] 记录 trace。
+- [ ] 对误报和漏报做失败分析。
+
+#### Must Read
+
+1. GitHub Actions Documentation  
+   重点看：workflow、event、job、step。目标是让 review agent 能跑在 PR 流程里。
+
+2. SWE-bench Paper  
+   重点看：真实 GitHub issue 修复任务为什么难。只读 abstract、introduction、benchmark setup。
+
+3. SWE-agent Paper  
+   重点看：agent-computer interface、shell/file interaction、feedback loop。
+
+#### Output Schema
+
+```json
+{
+  "severity": "high | medium | low",
+  "file": "path/to/file.py",
+  "line": 42,
+  "risk_type": "bug | security | test_gap | maintainability",
+  "reason": "...",
+  "suggested_fix": "..."
+}
+```
+
+#### Acceptance Criteria
+
+- 能在至少 3 个小型开源项目 diff 上运行。
+- 输出包含 severity、location、reason、suggested_fix。
+- 至少 20 个 review eval cases。
+- README 中解释设计权衡：为什么需要 Agent，而不是普通 linter。
+- 能解释误报和漏报如何评估。
+
+---
+
+### Option B: Web Research Agent
+
+#### Feature Scope
+
+- 根据用户问题拆分 search queries。
+- 搜索多个来源。
+- 过滤低质量来源。
+- 提取证据。
+- 生成带引用的 research brief。
+- 支持 unanswerable / conflicting evidence。
+- 记录 trace。
+- 评估 source quality 和 citation accuracy。
+
+#### Checklist
+
+- [ ] Query decomposition。
+- [ ] Search tool integration。
+- [ ] Source selection。
+- [ ] Evidence extraction。
+- [ ] Citation formatting。
+- [ ] Conflicting evidence handling。
+- [ ] Research report synthesis。
+- [ ] Eval cases。
+
+#### Output Format
+
+```text
+# Research Brief
+
+## Question
+...
+
+## Answer
+...
+
+## Evidence
+1. Claim A — Source 1
+2. Claim B — Source 2
+
+## Uncertainty
+...
+
+## Sources Used
+...
+```
+
+#### Acceptance Criteria
+
+- 至少 20 个 research eval cases。
+- 每个结论必须有来源。
+- 能处理冲突来源。
+- 能在证据不足时拒答。
+- README 中展示 source selection 规则。
+- 能解释 search agent 和普通 RAG 的区别。
+
+### Fallback If Stage 6 Is Cancelled
+
+如果第三项目被取消，Week 10-12 改为：
+
+```text
+1. 补齐 Agent Harness Mini 的 tests、trace viewer、README、examples。
+2. 补齐 RAG / Research Agent 的 eval result、failure-analysis.md、citation verifier demo。
+3. 做一个 5 分钟项目演示脚本：输入、工具调用、trace、eval failure、设计取舍。
+4. 不新开项目，不写泛博客，不补复杂 MCP。
+```
+
+这个 fallback 不是失败，而是求职信号优化：两个完整项目的可信度高于三个未闭环项目。
+
+---
+
+## Stage 7: Lightweight Skills / MCP
+
+目标：了解现代 Agent 生态，但不深挖。
+
+启动条件：只有两个 P0 项目稳定，且 Stage 6 已完成或明确取消后，才投入 1-2 天做这个轻量展示。
+
+### Checklist
+
+- [ ] 理解 Skill 和 Tool 的区别。
+- [ ] 理解 MCP 解决什么问题。
+- [ ] 写一个简单 `SKILL.md`。
+- [ ] 写一个最小 MCP-style tool adapter。
+
+### Must Read
+
+1. Model Context Protocol: Introduction  
+   重点看：MCP 为什么被称为 AI application 的 “USB-C”，它解决的是模型与外部工具/数据源连接标准化问题。
+
+2. Anthropic: Introducing the Model Context Protocol  
+   重点看：MCP client、MCP server、data sources、tools 的关系。
+
+3. Claude Code Skills  
+   重点看：skill 文件结构、description、触发机制、脚本和资源如何组织。
+
+### Minimal SKILL.md
+
+```text
+name: code-review
+when_to_use: when reviewing a Git diff for bugs, risks, and missing tests
+steps:
+  1. parse diff
+  2. identify risky changes
+  3. run available checks
+  4. produce structured review
+validation:
+  - output includes severity, file, line, reason, suggested_fix
+```
+
+### Minimal MCP-style Adapter
+
+```text
+agent -> tool adapter -> local function / file / database -> result -> agent
+```
+
+不要求完整实现 MCP 协议；九月前知道它解决什么问题即可。
+
+### Acceptance Criteria
+
+- 一个 `SKILL.md` 包含 description、when to use、steps、validation。
+- 一个脚本或模板能被 skill 使用。
+- 有 smoke test 证明 skill 有用。
+- 能解释 Tool、Skill、MCP 三者区别。
+
+---
+
+# 5. Evaluation And Safety
+
+目标：让项目看起来像工程系统，而不是 demo。
+
+本路线中 eval 不是最后一周补材料，而是从 Stage 1 开始持续维护。
+
+eval 的优先级不是单纯追数量，而是先覆盖失败类型。数量是下限，覆盖面才是质量。
+
+## Eval Requirements By Stage
+
+| Stage | Minimum Eval Cases | Focus |
+| --- | ---: | --- |
+| Stage 1 | 5 | tool call 是否正确，loop 是否停止。 |
+| Stage 2 | 10 | 工具错误、timeout、permission、retry。 |
+| Stage 3 | 15 | harness regression、trace、CLI。 |
+| Stage 4 | 20 | RAG answerability、citation。 |
+| Stage 5 | 20+ | hybrid retrieval、citation verifier、failure analysis。 |
+| Stage 6 | 20 | coding review 或 web research 的应用评测。 |
+
+最低覆盖要求：
+
+```text
+Harness eval:
+- 正常工具调用
+- 工具参数错误
+- 工具 timeout
+- permission denied
+- max_steps exceeded
+- 不应调用危险工具
+
+RAG eval:
+- answerable
+- unanswerable
+- ambiguous
+- multi-hop
+- citation mismatch
+- retrieved evidence insufficient
+- document prompt injection
+```
+
+安全要求按阶段前移：
+
+| Stage | Minimum Safety Requirement |
 | --- | --- |
-| [Claude Code](https://code.claude.com/docs/en/overview) | 学 coding agent 的产品化形态：shell、文件、权限、hooks、subagents、MCP。 |
-| [learn-claude-code](https://github.com/shareAI-lab/learn-claude-code) | 从零构建 Claude Code-like nano agent，适合理解 harness engineering。 |
-| [claw0](https://github.com/shareAI-lab/claw0) | 从零构建 OpenClaw-like agent gateway，覆盖 channel、routing、session、memory、delivery、concurrency。 |
-| [hello-agents](https://github.com/datawhalechina/hello-agents) | 中文智能体系统教程，适合从零开始补齐 Agent 原理与实践。 |
-| [OpenClaw](https://github.com/openclaw/openclaw) | 本地优先的个人 agent，适合研究长运行 agent 和系统级工具调用。 |
-| [Hermes Agent](https://github.com/NousResearch/hermes-agent) | 自托管、长期记忆、skills、消息网关和 toolsets。 |
-| [CyberClaw](https://github.com/ttguy0707/CyberClaw) | 透明可控 agent 架构，适合研究审计、两段式执行和安全边界。 |
-| [DeerFlow](https://github.com/bytedance/deer-flow) | 字节开源 long-horizon SuperAgent harness，适合研究 Deep Research、报告、slides、网页、图像和视频生成。 |
-| [smolagents](https://github.com/huggingface/smolagents) | Hugging Face 轻量 agent 框架，CodeAgent 思路值得研究。 |
-| [LangGraph](https://langchain-ai.github.io/langgraph/) | 状态图和可控 agent 编排，仍然值得作为工程基础学习。 |
-| [Qwen-Agent](https://github.com/QwenLM/Qwen-Agent) | 国产模型生态里的工具调用、RAG、MCP agent 框架。 |
-| [Pydantic AI](https://pydantic.dev/docs/ai/core-concepts/agent/) | 类型安全和结构化输出，适合生产 Python agent。 |
+| Stage 1 | max_steps、工具异常不会崩溃 |
+| Stage 2 | permission gate、path allowlist、timeout |
+| Stage 3 | trace 记录 permission / tool failure |
+| Stage 4 | retrieved content 不得覆盖系统指令 |
+| Stage 5 | citation verifier、abstention policy |
+| Stage 6 | shell / linter / web search 需要 sandbox 或 allowlist |
 
-### Legacy Or Optional Frameworks
+## Eval Case Template
 
-这些项目仍有参考价值，但不建议作为当前学习主线。
+```yaml
+- id: rag_001
+  task: "What does doc A say about tool calling?"
+  expected_behavior: "answer with citation from doc A"
+  expected_tools: ["retrieve"]
+  disallowed_tools: []
+  success_criteria:
+    - "contains citation"
+    - "does not cite non-retrieved source"
+    - "does not invent unsupported claim"
+```
 
-| Framework | Note |
+## Eval Result Template
+
+```csv
+id,success,failure_type,tool_calls,latency_ms,cost_usd,notes
+rag_001,true,none,1,2300,0.01,passed
+```
+
+## Failure Taxonomy
+
+| Failure Type | Meaning |
 | --- | --- |
-| [CrewAI](https://docs.crewai.com/) | 可了解 role/task/crew 抽象，但很多场景已经被更强的 coding agent / harness 形态覆盖。 |
-| [AutoGen](https://microsoft.github.io/autogen/) | 多 agent 对话框架经典项目，适合了解历史和论文，不必重押。 |
-| [LangChain Agents](https://docs.langchain.com/) | 生态仍重要，但建议重点转向 LangGraph 和具体工程模式。 |
+| prompt | 指令不清或格式失控。 |
+| tool | 工具异常、超时或输出错误。 |
+| retrieval | 没检索到相关信息。 |
+| citation | 引用了不存在或无关的来源。 |
+| model | 推理错误或不稳定。 |
+| state | session / memory 污染。 |
+| permission | 权限拒绝或危险操作未确认。 |
+| context | 上下文过长、截断、错误压缩。 |
+| cost | 成本过高，不适合实际运行。 |
+| latency | 响应太慢，不适合交互式使用。 |
 
-### Papers
+## Trace Requirements
 
-| Paper | Topic |
+每次 Agent 运行至少记录：
+
+- run_id
+- timestamp
+- user task
+- model name
+- system / developer instruction hash
+- step number
+- LLM request metadata
+- tool call name
+- tool call arguments
+- tool result
+- error type
+- latency
+- cost estimate
+- final answer
+- eval result if applicable
+
+## Safety Boundary Template
+
+| Risky Action | Required Control |
 | --- | --- |
-| [ReAct](https://arxiv.org/abs/2210.03629) | Reasoning + acting 的基础范式。 |
-| [Toolformer](https://arxiv.org/abs/2302.04761) | 模型学习何时调用工具。 |
-| [Reflexion](https://arxiv.org/abs/2303.11366) | 语言反馈和自我改进。 |
-| [Generative Agents](https://arxiv.org/abs/2304.03442) | 记忆、反思、规划驱动的模拟 agent。 |
-| [Voyager](https://arxiv.org/abs/2305.16291) | 开放世界中的长期学习 agent。 |
-| [AutoGen](https://arxiv.org/abs/2308.08155) | 多 agent 对话框架。 |
-| [AgentBench](https://arxiv.org/abs/2308.03688) | Agent 能力评测。 |
-| [WebArena](https://arxiv.org/abs/2307.13854) | 真实网页环境下的 agent benchmark。 |
-| [SWE-bench](https://arxiv.org/abs/2310.06770) | 真实 GitHub issue 修复评测。 |
-| [SWE-agent](https://arxiv.org/abs/2405.15793) | 软件工程 agent 的 agent-computer interface。 |
-| [Dive into Claude Code](https://arxiv.org/abs/2604.14228) | 从系统设计角度分析 Claude Code 这类 coding agent 的 harness、权限、压缩和扩展机制。 |
-| [AI Harness Engineering](https://arxiv.org/abs/2605.13357) | 把 harness 作为 agent 能力来源来研究。 |
-| [Configuring Agentic AI Coding Tools](https://arxiv.org/abs/2602.14690) | 对 Claude Code、Codex、Gemini、Cursor 等 coding tools 的配置机制分析。 |
-| [Your Agent, Their Asset](https://arxiv.org/abs/2604.04759) | OpenClaw 等本地 agent 的真实安全风险分析。 |
+| 删除文件 | dry-run + path allowlist + confirmation |
+| 写文件 | workspace allowlist + diff preview |
+| 发邮件 / 发帖 | human approval + recipient allowlist |
+| shell 执行 | sandbox + timeout + command denylist |
+| 外部网页操作 | 不登录敏感账号，不绕过平台规则 |
+| RAG 文档指令注入 | 不执行 retrieved content 中的指令 |
+| 读取私密文件 | explicit permission + path allowlist |
+| 网络请求 | domain allowlist + rate limit |
 
-### GitHub Repositories
+---
 
-| Repo | Why It Is Useful |
+# 6. Revised 14-Week Schedule
+
+假设从 5 月下旬开始，到 9 月初投递实习。
+
+| Week | Focus | Output | Main Resources |
+| --- | --- | --- | --- |
+| Week 1 | Agent 边界、workflow vs agent、minimal loop skeleton | `notes/when-to-use-agent.md` + `agent-harness-mini` skeleton | Anthropic Building Effective Agents; OpenAI Practical Guide |
+| Week 2 | Function calling、structured output、2-3 个工具、5 条 eval | Agent Harness Mini v0 | OpenAI Function Calling; Claude Tool Use |
+| Week 3 | Tool registry、schema、timeout、retry、error handling、permission gate | Agent Harness Mini v1 | OpenAI Tools; OpenAI Agents SDK Tools |
+| Week 4 | JSONL trace、tool failure eval、10 条 eval cases | Harness trace + eval v0 | OpenAI Tracing; LangSmith Evaluation concepts |
+| Week 5 | CLI、session state、context management、eval runner、15 条 eval | Agent Harness Mini v2；通过 Gate A | LangGraph Overview; OpenAI Agents SDK |
+| Week 6 | RAG ingestion、chunking、embedding retrieval、basic trace | RAG pipeline v0 | LlamaIndex RAG; LangChain RAG concepts |
+| Week 7 | Citation formatting、empty retrieval、20 条 RAG eval、5 条 unanswerable | RAG Agent v0 | LlamaIndex Starter; RAG evaluation notes |
+| Week 8 | Hybrid retrieval、rerank、citation verifier | RAG Agent v1 | RAGFlow / Onyx optional |
+| Week 9 | RAG failure analysis、README、examples、eval result；通过 Gate B | RAG project polished | Project README, eval results |
+| Week 10 | 只有通过 Gate C 才启动第三项目；否则 polish 两个 P0 项目 | Third project skeleton 或 core project hardening | GitHub Actions / SWE-bench 或 README/eval/trace |
+| Week 11 | 第三项目 v1；或继续补 P0 项目的测试、examples、复现环境 | Third project v1 或 stronger P0 repos | SWE-agent / OpenHands 或 Docker/pytest |
+| Week 12 | 项目工程化、Docker/uv、examples、smoke tests、演示脚本 | Two strong runnable projects | Docker, pytest, README |
+| Week 13 | 简历、项目文章、面试准备 | Resume + project writeup | 本文档 Interview Questions |
+| Week 14 | 模拟面试、投递、查漏补缺 | Application package | 项目复盘、失败分析 |
+
+执行约束：
+
+```text
+如果 Week 5 结束时 Agent Harness Mini 没有 CLI / trace / eval runner，不进入 RAG 深度开发，先补 Harness。
+如果 Week 9 结束时 RAG 没有 citation verifier / 20+ eval / 5+ unanswerable cases，不做第三个项目。
+如果 Week 10 开始时两个 P0 项目的 README 不能独立跑通，不做第三个项目。
+如果 Week 12 时两个主项目 README 不完整，不写博客，先补 README、examples、eval result、failure analysis。
+MCP / Skill Demo 永远不能挤占两个 P0 项目的时间。
+```
+
+---
+
+# 7. Minimal Resource List
+
+只保留少量高价值资源。不要横向刷太多。
+
+## Must Read
+
+| Resource | Use |
 | --- | --- |
-| [datawhalechina/hello-agents](https://github.com/datawhalechina/hello-agents) | 中文智能体系统教程，从零开始构建智能体。 |
-| [shareAI-lab/learn-claude-code](https://github.com/shareAI-lab/learn-claude-code) | Bash is all you need，从 0 到 1 学 Claude Code-like agent harness。 |
-| [shareAI-lab/claw0](https://github.com/shareAI-lab/claw0) | 从 0 到 1 学 OpenClaw-like gateway，10 个渐进章节覆盖 agent loop 到 concurrency。 |
-| [openclaw/openclaw](https://github.com/openclaw/openclaw) | 研究本地个人 agent、skills、长运行任务、系统工具和权限边界。 |
-| [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) | 研究自托管 agent、长期记忆、skills、toolsets、多平台消息网关。 |
-| [ttguy0707/CyberClaw](https://github.com/ttguy0707/CyberClaw) | 研究透明 agent、安全审计、两段式执行、双水位记忆和心跳任务。 |
-| [bytedance/deer-flow](https://github.com/bytedance/deer-flow) | Deep Research / long-horizon agent，适合学习搜索、报告生成、沙箱、memory、skills、subagents、message gateway。 |
-| [NirDiamant/GenAI_Agents](https://github.com/NirDiamant/GenAI_Agents) | 综合教程库，适合横向比较 ReAct、Plan-and-Execute、Multi-Agent 等实现方式。 |
-| [NirDiamant/agents-towards-production](https://github.com/NirDiamant/agents-towards-production) | production-grade agent 教程库，适合补工程化组件。 |
-| [huggingface/smolagents](https://github.com/huggingface/smolagents) | 轻量 CodeAgent 风格框架，适合研究“让模型写代码执行动作”的范式。 |
-| [openai/codex](https://github.com/openai/codex) | OpenAI 开源 coding agent CLI，适合研究 sandbox、approval、CLI 产品形态。 |
-| [opencode-ai/opencode](https://github.com/opencode-ai/opencode) | 终端优先的开源 coding agent，适合对照 Claude Code / Codex。 |
-| [langchain-ai/langgraph](https://github.com/langchain-ai/langgraph) | 状态图和可控 agent 编排。 |
-| [openai/openai-agents-python](https://github.com/openai/openai-agents-python) | OpenAI Agents SDK Python。 |
-| [QwenLM/Qwen-Agent](https://github.com/QwenLM/Qwen-Agent) | Qwen 生态 agent 框架。 |
-| [browser-use/browser-use](https://github.com/browser-use/browser-use) | 浏览器 agent 实战。 |
-| [bytedance/UI-TARS-desktop](https://github.com/bytedance/UI-TARS-desktop) | 多模态桌面 agent stack，适合研究视觉 UI 操作。 |
-| [SWE-agent/SWE-agent](https://github.com/SWE-agent/SWE-agent) | 软件工程 agent。 |
-| [All-Hands-AI/OpenHands](https://github.com/All-Hands-AI/OpenHands) | 开源 coding agent。 |
-| [microsoft/ai-agents-for-beginners](https://github.com/microsoft/ai-agents-for-beginners) | 系统化入门课程。 |
-| [jjyaoao/HelloAgents](https://github.com/jjyaoao/HelloAgents) | 基于 OpenAI 原生 API 的生产级多智能体框架，覆盖 ToolResponse、上下文工程、会话持久化、子代理、TraceLogger 等。 |
+| Anthropic: Building Effective Agents | 理解 workflow / agent 边界。 |
+| OpenAI: A Practical Guide to Building Agents | 理解 Agent 产品和工程落地。 |
+| OpenAI Function Calling | 学工具调用。 |
+| OpenAI Using Tools | 学工具体系。 |
+| Claude Tool Use | 对比工具调用设计。 |
+| LlamaIndex RAG | 学 RAG 主线。 |
+| LangChain RAG Concepts | 理解 RAG 组件边界。 |
+| LangGraph Overview | 学 stateful orchestration 和 harness 设计。 |
+| OpenAI Agents SDK Tracing | 学 trace 和 observability。 |
+| OpenAI Evals / Agent Evals | 学 eval case、grader、regression tracking。 |
+| Model Context Protocol Intro | 理解 MCP 的问题域。 |
 
-### Thoughtful Blogs
+## Optional Frameworks
 
-| Blog | Why It Is Useful |
+| Framework | When To Use |
 | --- | --- |
-| [Lilian Weng: LLM Powered Autonomous Agents](https://lilianweng.github.io/posts/2023-06-23-agent/) | 经典长文，系统整理 agent 架构、记忆、规划和工具使用。 |
-| [Simon Willison: AI/LLM writing](https://simonwillison.net/tags/llms/) | 非常务实的 LLM 工程观察，适合补工程直觉。 |
-| [LangChain Blog](https://blog.langchain.com/) | LangGraph、LangSmith、agent 工程实践。 |
-| [Google Developers Blog: ADK](https://developers.googleblog.com/agent-development-kit-easy-to-build-multi-agent-applications/) | Google ADK 官方发布文章。 |
+| LangGraph | 学 stateful orchestration、human-in-the-loop、可恢复执行。 |
+| LlamaIndex | 快速做 RAG / document QA。 |
+| OpenAI Agents SDK | 学现代 agent SDK 的抽象、handoff、guardrails、tracing。 |
+| smolagents | 学轻量 code-agent 风格。 |
+| LangSmith | 学 eval dataset、experiment、evaluator、regression tracking。 |
 
-### Claude Code Study Path
+## Papers: Read Abstract + Key Idea Only
 
-Claude Code 是当前最值得拆解的 coding agent 产品之一。推荐按“官方文档 -> 复刻项目 -> 架构解析 -> 工程对照”的顺序学习：
-
-- 读官方文档，理解 hooks、subagents、MCP、GitHub Actions、permissions。
-- 读公开分析论文，抽象出 agent harness 的设计空间。
-- 跟随 [learn-claude-code](https://github.com/shareAI-lab/learn-claude-code) 从零复刻核心机制。
-- 对照 [hello-agents](https://github.com/datawhalechina/hello-agents)、[OpenClaw](https://github.com/openclaw/openclaw)、[Hermes Agent](https://github.com/NousResearch/hermes-agent) 这些开源项目，学习工程化实现。
-
-| Resource | Focus |
+| Paper | Why |
 | --- | --- |
-| [Claude Code Common Workflows](https://code.claude.com/docs/en/tutorials) | 官方工作流教程，适合学日常使用和项目协作。 |
-| [Claude Code Overview](https://code.claude.com/docs/en/overview) | 官方入口，理解产品能力和命令行工作方式。 |
-| [learn-claude-code](https://github.com/shareAI-lab/learn-claude-code) | 从零复刻 Claude Code-like agent，适合学 harness 最小实现。 |
-| [Claude Code 源码解析](https://claudecoding.dev/) | 中文架构解读，适合按模块理解实现思路。 |
-| [Claude Code 源码分析地图](https://code.claudecn.com/) | 用地图方式拆解 agent loop、工具、命令和多代理协作。 |
-| [Dive into Claude Code](https://arxiv.org/abs/2604.14228) | 从研究视角总结 Claude Code 的设计空间和 agent harness 模式。 |
-| [Agentic Education](https://arxiv.org/abs/2604.17460) | 用 Claude Code 学 Claude Code 的交互式课程思路。 |
+| ReAct | reasoning + acting 基础范式。 |
+| Toolformer | 工具使用思想。 |
+| AgentBench | Agent eval 思路。 |
+| SWE-bench | Coding agent 评测方向。 |
+| SWE-agent | 软件工程 agent interface。 |
 
-## Learning Principles
+## Projects To Study Selectively
 
-- Build first, then read deeper.
-- Prefer small reliable agents over impressive demos.
-- Use tools with strict schemas.
-- Add evals before you add more agents.
-- Trace every important run.
-- Treat multi-agent as a coordination problem.
-- Keep humans in the loop for risky actions.
-- Respect platform rules, copyrights, and data access boundaries.
+| Project | What To Learn |
+| --- | --- |
+| GPT Researcher | research agent、搜索、引用、报告生成。 |
+| Open Deep Research | 多轮搜索、状态、引用。 |
+| OpenHands | coding agent、shell、测试、软件工程任务。 |
+| SWE-agent | agent-computer interface。 |
+| LangGraph Examples | state graph、可控编排。 |
+| smolagents | code-agent 风格和轻量实现。 |
+| Onyx | 企业级 search assistant、connectors、权限、hybrid search。 |
+| RAGFlow | 文档理解型 RAG 的 ingestion、chunking、retrieval。 |
 
-## Contributing
+---
 
-Good contributions are welcome. Please prefer:
+# 8. Resume-Oriented Deliverables
 
-- official docs and official engineering blogs;
-- high-quality papers and benchmarks;
-- open-source repositories with runnable code;
-- serious technical blogs with original insight;
-- small projects that help learners practice one specific skill.
+到九月初，至少应有以下材料：
 
-Please avoid:
+```text
+projects/
+  agent-harness-mini/          # P0 required
+  rag-research-agent/          # P0 required
+  coding-review-agent/         # P1 optional only if Gate C passed
+  web-research-agent/          # P1 optional alternative
+  skills-demo/                 # P2 optional light demo only after P0 stabilized
 
-- copied platform posts;
-- course ads without substantial content;
-- private or paywalled material;
-- scraping-oriented content that bypasses platform rules.
+docs/
+  when-to-use-agent.md
+  failure-analysis.md
+  safety-boundaries.md
+  architecture-notes.md
+  project-retrospective.md
+
+evals/
+  cases.yaml
+  results.csv
+```
+
+每个核心项目 README 必须包含：
+
+- 项目目标。
+- 为什么需要 Agent。
+- 架构图或模块图。
+- 如何运行。
+- 示例输入输出。
+- eval 结果。
+- trace 示例。
+- 已知失败案例。
+- 安全边界。
+- 后续改进。
+
+---
+
+# 9. README Template For Each Project
+
+每个项目都应使用类似结构：
+
+```markdown
+# Project Name
+
+## 1. Problem
+
+这个项目解决什么问题？为什么普通 workflow / script 不够？
+
+## 2. Agent Boundary
+
+哪些部分由 Agent 决策？哪些部分是确定性 workflow？
+
+## 3. Architecture
+
+模块图：LLM、tools、state、trace、eval、permission、retrieval 等。
+
+## 4. Features
+
+- Feature A
+- Feature B
+- Feature C
+
+## 5. Quick Start
+
+```bash
+pip install -e .
+agent run "..."
+agent eval evals/cases.yaml
+```
+
+## 6. Example
+
+输入、工具调用、输出、trace 片段。
+
+## 7. Evaluation
+
+eval cases、results、failure types、known failures。
+
+## 8. Safety
+
+权限控制、危险动作、限制。
+
+## 9. Design Tradeoffs
+
+为什么这样设计？替代方案是什么？
+
+## 10. Limitations
+
+不能做什么？什么情况下会失败？
+
+## 11. Future Work
+
+下一步如何改进？
+```
+
+---
+
+# 10. Resume Bullet Templates
+
+必须根据真实项目改写，不能虚构。
+
+## Agent Harness Mini
+
+```text
+Built a minimal Python agent harness with structured tool calling, tool registry, timeout/retry handling, permission gates, JSONL tracing, CLI execution, and regression eval runner.
+```
+
+## RAG / Research Agent
+
+```text
+Developed a document-grounded research agent supporting ingestion, chunking, hybrid retrieval, citation-based answers, citation verification, abstention on insufficient evidence, and 20+ evaluation cases.
+```
+
+## Coding Review Agent
+
+只有真实完成该项目时才使用：
+
+```text
+Implemented a coding review agent that analyzes Git diffs, ranks bug/security/test risks, invokes static checks, and generates structured review reports with trace logs and failure analysis.
+```
+
+## Web Research Agent
+
+只有真实完成该项目时才使用：
+
+```text
+Built a web research agent that decomposes research questions, selects sources, extracts evidence, resolves conflicting claims, and generates citation-grounded research briefs with evaluation traces.
+```
+
+## Evaluation
+
+```text
+Designed an agent evaluation suite tracking success rate, failure type, tool-call count, latency, and cost across fixed regression tasks.
+```
+
+---
+
+# 11. Interview Questions You Should Be Able To Answer
+
+## Agent Basics
+
+- 什么是 Agent？它和 workflow / chatbot 的区别是什么？
+- 什么时候不应该用 Agent？
+- ReAct 的核心思想是什么？
+- 为什么“能聊天”不等于“是 Agent”？
+
+## Tool Calling
+
+- tool schema 怎么设计？
+- 工具调用失败怎么办？
+- 如何避免重复调用和死循环？
+- 危险工具如何加权限控制？
+- tool registry 的职责是什么？
+- retry 和 timeout 应该放在哪里？
+
+## Harness
+
+- agent loop 的核心状态有哪些？
+- trace 应该记录什么？
+- session 和 memory 有什么区别？
+- context 太长怎么办？
+- permission gate 应该拦截哪些动作？
+- 为什么需要 CLI 和 eval runner？
+
+## RAG
+
+- chunk size 怎么选？
+- embedding retrieval 和 keyword retrieval 的区别是什么？
+- hybrid retrieval 为什么有用？
+- rerank 解决什么问题？
+- 如何防止 hallucinated citations？
+- 检索为空时应该怎么回答？
+- citation verifier 怎么实现？
+
+## Evaluation
+
+- 怎么评估一个 Agent？
+- 你的 eval cases 怎么设计？
+- 失败类型如何分类？
+- prompt 改动后如何防止能力退化？
+- 如何衡量 false positive 和 false negative？
+- 如何记录 latency 和 cost？
+
+## Coding Agent
+
+- coding agent 为什么需要 shell / file tools？
+- 如何防止危险命令？
+- coding review agent 和普通 linter 的区别是什么？
+- 如何衡量 review agent 的误报和漏报？
+
+## Research Agent
+
+- research agent 和普通搜索有什么区别？
+- 如何判断 source quality？
+- 冲突来源怎么处理？
+- 什么情况下应该拒答？
+
+---
+
+# 12. What Not To Do
+
+九月前不要做这些：
+
+- 不要把时间花在收集大量 awesome-list 上。
+- 不要同时学太多框架。
+- 不要只做 prompt demo。
+- 不要做没有 eval 的 Agent。
+- 不要过早做复杂 multi-agent。
+- 不要把 role-play crew 当成主线。
+- 不要只会调 LangChain，而不会手写 Agent loop。
+- 不要忽视 README、测试、日志、Docker、失败分析。
+- 不要为了追热点深挖 MCP、A2A、ACP，而主项目跑不起来。
+- 不要用模型自由生成 citations。
+- 不要把安全边界留到最后再补。
+
+---
+
+# 13. Final Checklist Before Applying
+
+投递前检查：
+
+- [ ] 至少 2 个核心项目可以运行。
+- [ ] 每个项目有清晰 README。
+- [ ] 每个项目有 examples。
+- [ ] 至少一个项目有 eval runner。
+- [ ] 至少一个项目有 trace log。
+- [ ] 至少一个项目实现 permission gate。
+- [ ] RAG 项目有 citation verifier。
+- [ ] RAG 项目有 unanswerable eval cases。
+- [ ] 简历中没有虚构能力。
+- [ ] 能讲清楚每个项目失败在哪里。
+- [ ] 能讲清楚为什么你的方案需要 Agent。
+- [ ] 能讲清楚哪些部分其实不需要 Agent。
+- [ ] 能讲清楚如果继续做，会如何改进。
+- [ ] 能现场解释一次 trace。
+- [ ] 能解释一次 eval failure。
+
+---
+
+# 14. Suggested Final Positioning
+
+九月初你的求职定位可以是：
+
+```text
+CS undergraduate focused on LLM agent engineering. Built a minimal agent harness and a document-grounded RAG agent with structured tool calling, tracing, evaluation, citation verification, and safety controls.
+```
+
+更短版本：
+
+```text
+LLM agent engineering candidate with hands-on experience in tool calling, RAG, tracing, evals, and safety controls.
+```
+
+中文口径：
+
+```text
+我不是只会调框架 API，而是能实现一个最小 Agent harness，包括工具注册、状态管理、权限控制、trace、eval 和失败分析；同时能把这套机制应用到 RAG 或代码审查等具体场景里。
+```
+
+---
+
+# 15. Execution Rule
+
+整个路线的执行标准只有一个：
+
+```text
+每周必须留下可以运行、可以测试、可以解释的产出。
+```
+
+优先级规则：
+
+```text
+P0 项目闭环 > P1 第三项目 > P2 MCP / Skill 展示 > 博客和泛资源阅读
+```
+
+如果某个学习任务不能转化为代码、eval、trace、README、failure analysis 或面试表达，就降低优先级。
+
+最终目标不是“学完 Agent”，而是：
+
+```text
+拿出两个能证明工程能力的 Agent 项目，并能清楚解释它们为什么这样设计、在哪里会失败、如何评估和改进。
+```
+
