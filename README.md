@@ -156,10 +156,10 @@ Gate C — Week 10 开始前：
 
 ### Checklist
 
-- [ ] 区分 chatbot、workflow、agent、multi-agent。
-- [ ] 理解基本循环：observe -> think/plan -> act -> observe。
-- [ ] 明白什么时候不该用 agent：任务稳定、步骤确定、普通脚本能解决时，不要引入 agent。
-- [ ] 写一页笔记：我的目标场景为什么需要 agent，而不是普通 workflow？
+- [✔] 区分 chatbot、workflow、agent、multi-agent。
+- [✔] 理解基本循环：observe -> think/plan -> act -> observe。
+- [✔] 明白什么时候不该用 agent：任务稳定、步骤确定、普通脚本能解决时，不要引入 agent。
+- [✔] 写一页笔记：我的目标场景为什么需要 agent，而不是普通 workflow？
 
 ### Must Read
 
