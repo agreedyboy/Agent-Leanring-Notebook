@@ -31,7 +31,25 @@ tools = [
                 "required": []
             }
         }
-    }
+    },
+
+    {
+        "type": "function",
+        "function": {
+            "name": "read_file",
+            "description": "Read the file according to the path",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": r"The file's path, e.g. D:\xjbx\Agent-Leanring-Notebook\README.md"
+                    }
+                },
+                "required": ["path"]
+            },
+        }
+    },
     
 ]
 
@@ -51,6 +69,8 @@ def get_user_profile(**kwargs):
         "interests": ["AI Technology", "Sci-Fi Movies"]
     }
     return json.dumps(user_data)
+
+
 
 
 available_tools = {

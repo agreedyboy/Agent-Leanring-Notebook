@@ -38,7 +38,7 @@ def test_loads_selected_provider_from_dotenv(
         ),
     )
 
-    config = load_model_config("kimi", env_paths=(env_path,))
+    config = load_model_config("kimi")
 
     assert config == ModelConfig(
         provider="KIMI",
@@ -65,7 +65,7 @@ def test_reads_provider_choice_from_environment(
         ),
     )
 
-    config = load_model_config(env_paths=(env_path,))
+    config = load_model_config()
 
     assert config.provider == "DEEPSEEK"
     assert config.model_id == "deepseek-test"
@@ -86,4 +86,4 @@ def test_raises_clear_error_when_required_value_is_missing(
     )
 
     with pytest.raises(ConfigError, match="DEEPSEEK_BASE_URL"):
-        load_model_config("DEEPSEEK", env_paths=(env_path,))
+        load_model_config("DEEPSEEK")

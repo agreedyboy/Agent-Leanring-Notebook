@@ -217,3 +217,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# tracing
+*.jsonl
+
+# test
+projects/agent-harness-mini/tests/

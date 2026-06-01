@@ -209,9 +209,13 @@ notes/when-to-use-agent.md
 - [✔] 解析 tool call / function call。
 - [✔] 执行工具并把结果作为 observation 喂回模型。
 - [✔] 加入 `max_steps`，防止死循环。
-- [ ] 保存最小 trace。
+- [✔] 保存最小 trace。
+  - 其作用有点类似 `日志`，相较于在终端print进行查看执行过程，trace确实能够更直观或更清晰地展示智能体的执行过程
+
 - [ ] 写 5 个 eval cases。
-- [ ] 记录至少一种失败类型，例如 tool error 或 max_steps exceeded。
+  - 目前所实现的智能体还是相对较为简单的，感觉暂时没有必要专门实现eval cases，因此跳过这一步
+  
+- [✔] 记录至少一种失败类型，例如 tool error 或 max_steps exceeded。
 
 ### Must Read
 
