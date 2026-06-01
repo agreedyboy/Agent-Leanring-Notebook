@@ -10,12 +10,6 @@
 少读泛资源，多做可运行、可测试、可解释、可复现的工程项目。
 ```
 
-本执行版做三个硬调整：
-
-1. **贯穿式 Harness**：`Agent Harness Mini` 从 Stage 1 开始持续演化，`minimal-agent-loop` 不再单独建项目，避免前期代码被丢弃或重写。
-2. **评测、追踪、安全前移**：eval、trace、permission/safety 不再放到后期补材料，而是从 Stage 1 开始随项目一起维护。
-3. **第三项目条件化**：九月前默认只保证两个强项目：`Agent Harness Mini` 和 `RAG / Research Agent`。`Coding Review Agent` / `Web Research Agent` 只有在前两个项目通过阶段门槛后才启动；MCP / Skill 只保留为 1-2 天轻量展示。
-
 ---
 
 ## 0. Final Target Outcome
@@ -207,12 +201,14 @@ notes/when-to-use-agent.md
 
 ### Checklist
 
-- [ ] 调用一个 LLM API 完成普通对话。
-- [ ] 让模型输出结构化 JSON。
-- [ ] 定义至少 2 个工具，例如 `calculator`、`read_file`。
-- [ ] 解析 tool call / function call。
-- [ ] 执行工具并把结果作为 observation 喂回模型。
-- [ ] 加入 `max_steps`，防止死循环。
+- [✔] 调用一个 LLM API 完成普通对话。
+- [✔] 让模型输出结构化 JSON。
+- [✔] 定义至少 2 个工具，例如 `calculator`、`read_file`。
+  - 为了方便实现，我此处实现的是`get_weather` 与 `get_user_profile` 两个提前写好的会返回固定结果的tools，而非调用外部api
+
+- [✔] 解析 tool call / function call。
+- [✔] 执行工具并把结果作为 observation 喂回模型。
+- [✔] 加入 `max_steps`，防止死循环。
 - [ ] 保存最小 trace。
 - [ ] 写 5 个 eval cases。
 - [ ] 记录至少一种失败类型，例如 tool error 或 max_steps exceeded。
