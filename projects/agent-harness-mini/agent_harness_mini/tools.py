@@ -3,8 +3,12 @@ from __future__ import annotations
 import json
 import string
 import time
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 from dataclasses import dataclass, field
+
+ERROR_UNKNOWN_TOOL = "unknown_tool"
+ERROR_INVALID_JSON = "invalid_json"
+
 
 tools = [
     {
@@ -171,6 +175,13 @@ class RetryPolicy:
 
 @dataclass(frozen=True, slots=True)
 class Tool:
+    """
+    工具类
+    其需要处理invalid_input, runtime_error, empty_result, timeout, retry等边界问题
+    同时，其需要计算工具调用耗时
+    主要逻辑为，先对输入进行合法性检测，然后调用工具函数
+    """
+
     # 工具名
     name: str
     # 工具描述
@@ -280,3 +291,88 @@ class Tool:
             data = data,
             latency_ms=self._elapsed_ms(start_time=start_time)
         )
+    
+
+class ToolRegistry:
+    """
+    工具注册类，其负责工具的注册，与执行工具的调用逻辑
+    同时，需要处理unknown_tool与invalid_json两个边界问题
+    其只负责注册工具、与执行工具调用
+    """
+    def __init__(self, tools: Iterable[Tool] | None = None) -> None:
+        self._tools: dict[str, Tool] = {}
+
+        if tools:
+            for tool in tools:
+                self.register(tool)
+
+    # 进行工具注册
+    def register(self, tool: Tool) -> None:
+        if tool.name in self._tools:
+             raise ValueError(f"Tool {tool.name!r} is already registered.")
+
+        self._tools[tool.name] = tool
+
+    # 获取指定工具
+    def get(self, name: str) -> Tool | None:
+        return self._tools.get(name)
+    
+    # 获取当前某个工具是否已经注册
+    def has(self, name: str) -> bool:
+        return name in self._tools
+    
+    # 获取当前已注册的工具的名字
+    def names(self) -> list[str]:
+        return sorted([name for name in self._tools])
+    
+    # 获取当前已注册的工具
+    def list_tools(self) -> list[Tool]:
+        return list(self._tools.values())
+    
+    # 将工具转化为Openai的接口格式
+    def to_openai_tools(self) -> list[dict[str, Any]]:
+        return [tool.to_openai_schema() for tool in self._tools.values()]
+    
+    # 执行解析好的工具调用
+    def execute(self, name: str, arguments: dict[str, Any]) -> ToolResult:
+        tool = self.get(name)
+
+        if tool is None:
+            return ToolResult.error(
+                tool_name=name,
+                error_type=ERROR_UNKNOWN_TOOL,
+                message=f"Tool {name!r} is not registered."
+            )
+        
+        return tool.execute(arguments=arguments)
+    
+    # 根据原始tool_call执行工具调用
+    def execute_tool_call(self, tool_call: Any) -> ToolResult:
+        name = tool_call.function.name
+        raw_arguments = tool_call.function.arguments
+
+        if not self.has(name):
+            return ToolResult.error(
+                tool_name=name,
+                error_type=ERROR_UNKNOWN_TOOL,
+                message=f"Tool {name!r} is not registered.",
+            )
+        
+        try:
+            arguments = json.loads(raw_arguments or "{}")
+
+        except json.JSONDecodeError as exc:
+            return ToolResult.error(
+                tool_name=name,
+                error_type=ERROR_INVALID_JSON,
+                message=str(exc),
+            )
+        
+        if not isinstance(arguments, dict):
+            return ToolResult.error(
+                tool_name=name,
+                error_type=ERROR_INVALID_JSON,
+                message="Tool call arguments must be a JSON object.",
+            )
+
+        return self.execute(name, arguments)
