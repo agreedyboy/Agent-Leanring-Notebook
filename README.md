@@ -298,16 +298,24 @@ projects/agent-harness-mini/
 
 ### Checklist
 
-- [ ] 设计 `Tool` 抽象。
-- [ ] 设计 `ToolRegistry`。
-- [ ] 每个工具都有 name、description、input schema、output schema。
-- [ ] 工具有 timeout。
-- [ ] 工具有 retry policy。
-- [ ] 工具有统一错误对象。
-- [ ] 工具错误至少区分 invalid input、timeout、permission denied、empty result、runtime error。
+- [✔] 设计 `Tool` 抽象。
+- [✔] 设计 `ToolRegistry`。
+- [✔] 每个工具都有 name、description、input schema、output schema。
+  - output schema通过设计了一个ToolResult类来实现了一个统一输出格式
+
+- [✔] 工具有 timeout。
+- [✔] 工具有 retry policy。
+- [✔] 工具有统一错误对象。
+- [✔] 工具错误至少区分 invalid input、timeout、permission denied、empty result、runtime error。
+
 - [ ] 对危险工具加入 permission gate。
-- [ ] 每次工具调用写入 JSONL trace。
+  - 目前还涉及不到危险工具，因此暂时不设计permission gate，等后续复现项目时再实现
+
+- [✔] 每次工具调用写入 JSONL trace。
+  - tracing 的逻辑写在loops中
+
 - [ ] eval cases 从 5 条扩展到 10 条。
+  - 还是感觉目前系统过于简单，没必要进行eval cases，因此跳过
 
 ### Tool Abstraction
 

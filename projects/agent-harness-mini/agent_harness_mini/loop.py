@@ -5,6 +5,7 @@ import time
 from typing import Any
 
 from .tracing import Tracer, emit_trace, make_json_safe, new_run_id
+from .tools import ToolResult, Tool, ToolRegistry, build_default_registry
 
 
 def call_model(client: Any, model_id: str, messages: list[dict], tools: list[dict]):
@@ -108,22 +109,14 @@ def execute_tool_call(tool_call: Any, available_tools: dict[str, Any]) -> dict[s
     }
 
 
-def build_tool_message(result: dict[str, Any]) -> dict[str, Any]:
+def build_tool_message(result: ToolResult) -> dict[str, Any]:
     """Convert an internal tool result into a role='tool' message."""
 
-    content = make_json_safe(
-        {
-            "ok": result["ok"],
-            "data": result["data"],
-            "error_type": result["error_type"],
-            "message": result["message"],
-        }
-    )
     return {
         "role": "tool",
-        "tool_call_id": result["tool_call_id"],
-        "name": result["tool_name"],
-        "content": json.dumps(content, ensure_ascii=False),
+        "tool_call_id": result.tool_call_id,
+        "name": result.tool_name,
+        "content": result.to_message_content(),
     }
 
 
@@ -158,8 +151,7 @@ def run_agent(
     client: Any,
     model_id: str,
     messages: list[dict],
-    tools: list[dict],
-    available_tools: dict[str, Any],
+    tool_registry: ToolRegistry,
     max_steps: int = 3,
     tracer: Tracer | None = None,
     run_id: str | None = None,
@@ -182,7 +174,7 @@ def run_agent(
         model_id=model_id,
         max_steps=max_steps,
         initial_message_count=len(messages),
-        tool_count=len(tools),
+        tool_count=len(tool_registry.names()),
     )
 
     for step in range(max_steps):
@@ -202,7 +194,7 @@ def run_agent(
             step=step,
             model_id=model_id,
             message_count=len(messages),
-            tool_count=len(tools),
+
         )
 
         try:
@@ -210,7 +202,7 @@ def run_agent(
                 client=client,
                 model_id=model_id,
                 messages=messages,
-                tools=tools,
+                tools=tool_registry.to_openai_tools(),
             )
         except Exception as exc:
             emit_trace(
@@ -278,23 +270,22 @@ def run_agent(
                 ),
             )
 
-            result = execute_tool_call(
-                tool_call=tool_call,
-                available_tools=available_tools,
-            )
+            # 执行工具函数
+            result = tool_registry.execute_tool_call(tool_call=tool_call)
 
             emit_trace(
                 tracer,
                 "tool_call_end",
                 run_id=active_run_id,
                 step=step,
-                tool_call_id=result["tool_call_id"],
-                tool_name=result["tool_name"],
-                ok=result["ok"],
-                data=result["data"] if trace_content else None,
-                error_type=result["error_type"],
-                message=result["message"],
-                latency_ms=result["latency_ms"],
+                tool_call_id=result.tool_call_id,
+                tool_name=result.tool_name,
+                ok=result.ok,
+                data=result.data if trace_content else None,
+                error_type=result.error_type,
+                message=result.message,
+                latency_ms=result.latency_ms,
+                attempts=result.attempts,
             )
 
             messages.append(build_tool_message(result=result))

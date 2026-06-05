@@ -64,10 +64,12 @@ tools = [
 
 
 
+# 根据传入地点返回模拟天气信息。
 def get_weather(location: str, **kwargs)->str:
     return f"The weather in {location} is sunny!"
 
 
+# 返回当前用户的模拟画像信息。
 def get_user_profile(**kwargs):
     # 无需外部 API，直接返回系统设定好的 Mock 数据
     user_data = {
@@ -81,15 +83,10 @@ def get_user_profile(**kwargs):
 
 
 
-
-available_tools = {
-    "get_weather": get_weather,
-    "get_user_profile": get_user_profile
-}
-
 @dataclass(frozen=True, slots=True)
 class ToolResult:
     """Normalized result returned by every tool execution."""
+    tool_call_id: str
     tool_name: str
     ok: bool
     data: Any
@@ -100,9 +97,11 @@ class ToolResult:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
+    # 构造一个表示工具执行成功的结果对象。
     @classmethod
     def success(
         cls,
+        tool_call_id: str,
         tool_name: str,
         data: Any,
         latency_ms: int = 0,
@@ -110,6 +109,7 @@ class ToolResult:
         metadata: dict[str, Any] | None = None,
     )-> "ToolResult":
         return cls(
+            tool_call_id=tool_call_id,
             tool_name=tool_name,
             ok = True,
             data = data,
@@ -120,9 +120,11 @@ class ToolResult:
             metadata = metadata or {},
         )
     
+    # 构造一个表示工具执行失败的结果对象。
     @classmethod
     def error(
         cls,
+        tool_call_id: str,
         tool_name: str,
         error_type: str,
         message: str,
@@ -132,6 +134,7 @@ class ToolResult:
         metadata: dict[str, Any] | None = None,
     ) -> "ToolResult":
         return cls(
+            tool_call_id=tool_call_id,
             tool_name=tool_name,
             ok=False,
             data=data,
@@ -142,6 +145,7 @@ class ToolResult:
             metadata=metadata or {},
         )
     
+    # 将工具结果转换为普通字典，便于 trace、测试和调试。
     def to_dict(self) -> dict[str, Any]:
         return {
             "tool_name": self.tool_name,
@@ -154,6 +158,7 @@ class ToolResult:
             "metadata": self.metadata,
         }
 
+    # 将工具结果序列化为 role="tool" 消息所需的 content 字符串。
     def to_message_content(self) -> str:
         """Serialize result for role='tool' message content."""
         return json.dumps(
@@ -169,8 +174,8 @@ class ToolResult:
 
 @dataclass(frozen=True, slots=True)
 class RetryPolicy:
-    max_retries: int = 0
-    delay_seconds: float = 0.0
+    max_retries: int = 3
+    delay_seconds: float = 0.5
     retry_on: tuple[str, ...] = ("runtime_error", "timeout")
 
 @dataclass(frozen=True, slots=True)
@@ -181,7 +186,6 @@ class Tool:
     同时，其需要计算工具调用耗时
     主要逻辑为，先对输入进行合法性检测，然后调用工具函数
     """
-
     # 工具名
     name: str
     # 工具描述
@@ -199,6 +203,8 @@ class Tool:
     # 权限
     requires_permission: bool = False
 
+
+    # 生成 OpenAI function calling 所需的工具 schema。
     def to_openai_schema(self)->dict[str, Any]:
         return {
             "type": "function",
@@ -209,10 +215,12 @@ class Tool:
             },
         }
 
+    # 根据开始时间计算当前操作耗时，单位为毫秒。
     @staticmethod
     def _elapsed_ms(start_time: float) -> int:
         return int((time.perf_counter() - start_time) * 1000)
     
+    # 校验模型传入的工具参数是否符合 input_schema。
     def validate_input(self, arguments: dict[str, Any])->str | None:
         """Return error message if arguments are invalid, otherwise None."""
         required = self.input_schema.get("required", [])
@@ -252,46 +260,68 @@ class Tool:
 
         return None
     
-    def execute(self, arguments: dict[str, Any]) -> ToolResult:
+    # 执行工具函数，并将成功、异常和空结果统一转换成 ToolResult。
+    def execute(self, id: str, arguments: dict[str, Any]) -> ToolResult:
         start_time = time.perf_counter()
 
         input_error = self.validate_input(arguments=arguments)
 
         if input_error:
             return ToolResult.error(
+                tool_call_id=id,
                 tool_name=self.name,
                 error_type="invalid_input",
                 message=input_error,
                 latency_ms=self._elapsed_ms(start_time=start_time)
             )
-
-        try:
-            data = self.func(**arguments)
-
-        except Exception as exc:
-            return ToolResult.error(
-                tool_name=self.name,
-                error_type="runtime_error",
-                message=str(exc),
-                latency_ms=self._elapsed_ms(start_time=start_time),
-                metadata={"exception_type": type(exc).__name__}
-            )
         
+        max_attempts = self.retry_policy.max_retries + 1
 
-        if data is None:
-            return ToolResult.error(
-                tool_name=self.name,
-                error_type="empty_result",
-                message="Tool returned no data",
-                latency_ms=self._elapsed_ms(start_time=start_time)
+        for attempt in range(1, max_attempts + 1):
+            try:
+                data = self.func(**arguments)
+            except Exception as exc:
+                result = ToolResult.error(
+                    tool_call_id=id,
+                    tool_name=self.name,
+                    error_type="runtime_error",
+                    message=str(exc),
+                    latency_ms=self._elapsed_ms(start_time=start_time),
+                    attempts=attempt,
+                    metadata={"exception_type": type(exc).__name__}
+                )
+            else:
+                if data is None:
+                    result = ToolResult.error(
+                        tool_call_id=id,
+                        tool_name=self.name,
+                        error_type="empty_result",
+                        message="Tool returned no data",
+                        latency_ms=self._elapsed_ms(start_time=start_time),
+                        attempts=attempt,
+                    )
+
+                return ToolResult.success(
+                    tool_call_id=id,
+                    tool_name=self.name,
+                    data = data,
+                    latency_ms=self._elapsed_ms(start_time=start_time),
+                    attempts=attempt,
+                )
+            
+            should_retry = (
+            result.error_type in self.retry_policy.retry_on
+            and attempt < max_attempts
             )
 
-        return ToolResult.success(
-            tool_name=self.name,
-            data = data,
-            latency_ms=self._elapsed_ms(start_time=start_time)
-        )
-    
+            if not should_retry:
+                return result
+
+            if self.retry_policy.delay_seconds > 0:
+                time.sleep(self.retry_policy.delay_seconds)
+
+        return result
+
 
 class ToolRegistry:
     """
@@ -299,6 +329,7 @@ class ToolRegistry:
     同时，需要处理unknown_tool与invalid_json两个边界问题
     其只负责注册工具、与执行工具调用
     """
+    # 初始化工具注册表，并可选择批量注册初始工具。
     def __init__(self, tools: Iterable[Tool] | None = None) -> None:
         self._tools: dict[str, Tool] = {}
 
@@ -306,53 +337,56 @@ class ToolRegistry:
             for tool in tools:
                 self.register(tool)
 
-    # 进行工具注册
+    # 注册一个工具，并拒绝重复名称。
     def register(self, tool: Tool) -> None:
         if tool.name in self._tools:
              raise ValueError(f"Tool {tool.name!r} is already registered.")
 
         self._tools[tool.name] = tool
 
-    # 获取指定工具
+    # 根据名称获取工具；不存在时返回 None。
     def get(self, name: str) -> Tool | None:
         return self._tools.get(name)
     
-    # 获取当前某个工具是否已经注册
+    # 判断指定名称的工具是否已经注册。
     def has(self, name: str) -> bool:
         return name in self._tools
     
-    # 获取当前已注册的工具的名字
+    # 返回所有已注册工具的名称列表。
     def names(self) -> list[str]:
         return sorted([name for name in self._tools])
     
-    # 获取当前已注册的工具
+    # 返回所有已注册的 Tool 对象。
     def list_tools(self) -> list[Tool]:
         return list(self._tools.values())
     
-    # 将工具转化为Openai的接口格式
+    # 将注册表中的工具批量转换为 OpenAI tools 参数格式。
     def to_openai_tools(self) -> list[dict[str, Any]]:
         return [tool.to_openai_schema() for tool in self._tools.values()]
     
-    # 执行解析好的工具调用
-    def execute(self, name: str, arguments: dict[str, Any]) -> ToolResult:
+    # 执行一个已经解析为 name 和 arguments 的工具调用。
+    def execute(self, id: str, name: str, arguments: dict[str, Any]) -> ToolResult:
         tool = self.get(name)
 
         if tool is None:
             return ToolResult.error(
+                tool_call_id=id,
                 tool_name=name,
                 error_type=ERROR_UNKNOWN_TOOL,
                 message=f"Tool {name!r} is not registered."
             )
         
-        return tool.execute(arguments=arguments)
+        return tool.execute(id=id, arguments=arguments) 
     
-    # 根据原始tool_call执行工具调用
+    # 从模型返回的原始 tool_call 中解析名称和参数，并执行对应工具。
     def execute_tool_call(self, tool_call: Any) -> ToolResult:
+        id = tool_call.id
         name = tool_call.function.name
         raw_arguments = tool_call.function.arguments
 
         if not self.has(name):
             return ToolResult.error(
+                tool_call_id=id,
                 tool_name=name,
                 error_type=ERROR_UNKNOWN_TOOL,
                 message=f"Tool {name!r} is not registered.",
@@ -363,6 +397,7 @@ class ToolRegistry:
 
         except json.JSONDecodeError as exc:
             return ToolResult.error(
+                tool_call_id=id,
                 tool_name=name,
                 error_type=ERROR_INVALID_JSON,
                 message=str(exc),
@@ -370,9 +405,48 @@ class ToolRegistry:
         
         if not isinstance(arguments, dict):
             return ToolResult.error(
+                tool_call_id=id,
                 tool_name=name,
                 error_type=ERROR_INVALID_JSON,
                 message="Tool call arguments must be a JSON object.",
             )
 
-        return self.execute(name, arguments)
+        return self.execute(id, name, arguments)
+    
+# 创建项目默认工具注册表，集中维护内置工具定义。
+def build_default_registry() -> ToolRegistry:
+    registry = ToolRegistry()
+
+    registry.register(
+        Tool(
+            name="get_weather",
+            description="Get today's weather of a location.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The city and state, e.g. San Francisco, CA",
+                    }
+                },
+                "required": ["location"],
+            },
+            func=get_weather,
+            retry_policy=RetryPolicy(max_retries=3, delay_seconds=0.5, retry_on=("runtime_error")),
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="get_user_profile",
+            description="Retrieve the current user's profile information.",
+            input_schema={
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+            func=get_user_profile,
+        )
+    )
+
+    return registry
