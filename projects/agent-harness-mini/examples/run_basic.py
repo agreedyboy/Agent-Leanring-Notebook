@@ -1,26 +1,14 @@
 from openai import OpenAI
 from agent_harness_mini.config import load_model_config
-from agent_harness_mini.tools import tools
 from agent_harness_mini.loop import run_agent
 from agent_harness_mini.tracing import JsonlTracer
 from agent_harness_mini.tools import build_default_registry
-
-import json
-from pathlib import Path
 
 
 config = load_model_config("DEEPSEEK")
 
 client = OpenAI(api_key=config.api_key,
                base_url=config.base_url)
-
-def send_messages(messages):
-    response = client.chat.completions.create(
-        model=config.model_id,
-        messages=messages,
-        tools=tools
-    )
-    return response.choices[0].message
 
 messages=[
         {"role": "system", "content": "You are a helpful assistant"},

@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from agent_harness_mini.loop import run_agent
 from agent_harness_mini.tracing import JsonlTracer, ListTracer
+from agent_harness_mini.tools import Tool, ToolRegistry
 
 
 class FakeCompletions:
@@ -38,6 +39,25 @@ def event_names(tracer):
     return [event["event"] for event in tracer.events]
 
 
+def weather_registry():
+    return ToolRegistry(
+        [
+            Tool(
+                name="get_weather",
+                description="Get weather.",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "location": {"type": "string"},
+                    },
+                    "required": ["location"],
+                },
+                func=lambda location: f"sunny in {location}",
+            )
+        ]
+    )
+
+
 def test_run_agent_records_basic_events_without_tool_calls():
     client = FakeClient([assistant_message("done")])
     tracer = ListTracer()
@@ -47,8 +67,7 @@ def test_run_agent_records_basic_events_without_tool_calls():
         client=client,
         model_id="test-model",
         messages=messages,
-        tools=[],
-        available_tools={},
+        tool_registry=ToolRegistry(),
         tracer=tracer,
         run_id="run-basic",
     )
@@ -83,8 +102,7 @@ def test_run_agent_records_successful_tool_call():
         client=client,
         model_id="test-model",
         messages=messages,
-        tools=[],
-        available_tools={"get_weather": lambda location: f"sunny in {location}"},
+        tool_registry=weather_registry(),
         max_steps=2,
         tracer=tracer,
         run_id="run-tool",
@@ -119,8 +137,7 @@ def test_run_agent_records_invalid_tool_json():
         client=client,
         model_id="test-model",
         messages=[{"role": "user", "content": "weather?"}],
-        tools=[],
-        available_tools={"get_weather": lambda location: f"sunny in {location}"},
+        tool_registry=weather_registry(),
         max_steps=1,
         tracer=tracer,
         run_id="run-invalid-json",

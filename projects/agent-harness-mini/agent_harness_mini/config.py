@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Iterable
 
 from dotenv import load_dotenv
 
@@ -33,6 +34,7 @@ class ModelConfig:
 
 def load_model_config(
     provider: str | None = None,
+    env_paths: Iterable[str | Path] | None = None,
 ) -> ModelConfig:
     """Load one provider's settings from environment variables or dotenv files.
 
@@ -40,7 +42,9 @@ def load_model_config(
     ``projects/agent-harness-mini/.env`` takes precedence over ``projects/.env``.
     """
 
-    load_dotenv(dotenv_path=LOCAL_ENV_PATH)
+    paths = tuple(Path(path) for path in env_paths) if env_paths is not None else (LOCAL_ENV_PATH,)
+    for path in paths:
+        load_dotenv(dotenv_path=path)
 
     selected_provider = (
         provider or os.getenv("MODEL_PROVIDER") or DEFAULT_PROVIDER

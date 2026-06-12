@@ -4,8 +4,8 @@ import json
 import time
 from typing import Any
 
-from .tracing import Tracer, emit_trace, make_json_safe, new_run_id
-from .tools import ToolResult, Tool, ToolRegistry, build_default_registry
+from .tracing import Tracer, emit_trace, new_run_id
+from .tools import ToolCallResult, ToolRegistry
 
 
 def call_model(client: Any, model_id: str, messages: list[dict], tools: list[dict]):
@@ -17,15 +17,6 @@ def call_model(client: Any, model_id: str, messages: list[dict], tools: list[dic
         tools=tools,
     )
     return response.choices[0].message
-
-
-def parse_tool_arguments(raw_arguments: str) -> dict[str, Any]:
-    """Parse tool call arguments from a JSON object string."""
-
-    parsed = json.loads(raw_arguments)
-    if not isinstance(parsed, dict):
-        raise ValueError("Tool call arguments must be a JSON object.")
-    return parsed
 
 
 def _elapsed_ms(start_time: float) -> int:
@@ -42,82 +33,10 @@ def _tool_arguments_for_trace(raw_arguments: str | None) -> Any:
         return raw_arguments
 
 
-def execute_tool_call(tool_call: Any, available_tools: dict[str, Any]) -> dict[str, Any]:
-    """Execute one tool call and return a structured tool result."""
-
-    start_time = time.perf_counter()
-    tool_call_id = tool_call.id
-    function_name = tool_call.function.name
-
-    if function_name not in available_tools:
-        return {
-            "tool_call_id": tool_call_id,
-            "tool_name": function_name,
-            "ok": False,
-            "data": None,
-            "error_type": "unknown_tool",
-            "message": f"Tool {function_name!r} is not defined or unavailable.",
-            "latency_ms": _elapsed_ms(start_time),
-        }
-
-    try:
-        function_args = parse_tool_arguments(tool_call.function.arguments)
-    except json.JSONDecodeError as exc:
-        return {
-            "tool_call_id": tool_call_id,
-            "tool_name": function_name,
-            "ok": False,
-            "data": None,
-            "error_type": "invalid_json",
-            "message": str(exc),
-            "latency_ms": _elapsed_ms(start_time),
-        }
-    except ValueError as exc:
-        return {
-            "tool_call_id": tool_call_id,
-            "tool_name": function_name,
-            "ok": False,
-            "data": None,
-            "error_type": "invalid_arguments",
-            "message": str(exc),
-            "latency_ms": _elapsed_ms(start_time),
-        }
-
-    function_to_call = available_tools[function_name]
-
-    try:
-        tool_output = function_to_call(**function_args)
-    except Exception as exc:
-        return {
-            "tool_call_id": tool_call_id,
-            "tool_name": function_name,
-            "ok": False,
-            "data": None,
-            "error_type": "runtime_error",
-            "message": str(exc),
-            "latency_ms": _elapsed_ms(start_time),
-        }
-
-    return {
-        "tool_call_id": tool_call_id,
-        "tool_name": function_name,
-        "ok": True,
-        "data": tool_output,
-        "error_type": None,
-        "message": None,
-        "latency_ms": _elapsed_ms(start_time),
-    }
-
-
-def build_tool_message(result: ToolResult) -> dict[str, Any]:
+def build_tool_message(tool_call_result: ToolCallResult) -> dict[str, Any]:
     """Convert an internal tool result into a role='tool' message."""
 
-    return {
-        "role": "tool",
-        "tool_call_id": result.tool_call_id,
-        "name": result.tool_name,
-        "content": result.to_message_content(),
-    }
+    return tool_call_result.to_tool_message()
 
 
 def build_assistant_message(message: Any) -> dict[str, Any]:
@@ -271,14 +190,15 @@ def run_agent(
             )
 
             # 执行工具函数
-            result = tool_registry.execute_tool_call(tool_call=tool_call)
+            tool_call_result = tool_registry.execute_tool_call(tool_call=tool_call)
+            result = tool_call_result.result
 
             emit_trace(
                 tracer,
                 "tool_call_end",
                 run_id=active_run_id,
                 step=step,
-                tool_call_id=result.tool_call_id,
+                tool_call_id=tool_call_result.tool_call_id,
                 tool_name=result.tool_name,
                 ok=result.ok,
                 data=result.data if trace_content else None,
@@ -286,9 +206,12 @@ def run_agent(
                 message=result.message,
                 latency_ms=result.latency_ms,
                 attempts=result.attempts,
+                attempt_records=(
+                    result.metadata.get("attempts") if trace_content else None
+                ),
             )
 
-            messages.append(build_tool_message(result=result))
+            messages.append(build_tool_message(tool_call_result=tool_call_result))
 
     emit_trace(
         tracer,

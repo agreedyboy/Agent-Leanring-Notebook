@@ -86,7 +86,6 @@ def get_user_profile(**kwargs):
 @dataclass(frozen=True, slots=True)
 class ToolResult:
     """Normalized result returned by every tool execution."""
-    tool_call_id: str
     tool_name: str
     ok: bool
     data: Any
@@ -101,7 +100,6 @@ class ToolResult:
     @classmethod
     def success(
         cls,
-        tool_call_id: str,
         tool_name: str,
         data: Any,
         latency_ms: int = 0,
@@ -109,7 +107,6 @@ class ToolResult:
         metadata: dict[str, Any] | None = None,
     )-> "ToolResult":
         return cls(
-            tool_call_id=tool_call_id,
             tool_name=tool_name,
             ok = True,
             data = data,
@@ -124,7 +121,6 @@ class ToolResult:
     @classmethod
     def error(
         cls,
-        tool_call_id: str,
         tool_name: str,
         error_type: str,
         message: str,
@@ -134,7 +130,6 @@ class ToolResult:
         metadata: dict[str, Any] | None = None,
     ) -> "ToolResult":
         return cls(
-            tool_call_id=tool_call_id,
             tool_name=tool_name,
             ok=False,
             data=data,
@@ -172,10 +167,26 @@ class ToolResult:
             default=repr,
         )
 
+
+@dataclass(frozen=True, slots=True)
+class ToolCallResult:
+    """Result wrapper for one model tool_call."""
+
+    tool_call_id: str
+    result: ToolResult
+
+    def to_tool_message(self) -> dict[str, Any]:
+        return {
+            "role": "tool",
+            "tool_call_id": self.tool_call_id,
+            "name": self.result.tool_name,
+            "content": self.result.to_message_content(),
+        }
+
 @dataclass(frozen=True, slots=True)
 class RetryPolicy:
-    max_retries: int = 3
-    delay_seconds: float = 0.5
+    max_retries: int = 0
+    delay_seconds: float = 0.0
     retry_on: tuple[str, ...] = ("runtime_error", "timeout")
 
 @dataclass(frozen=True, slots=True)
@@ -261,14 +272,13 @@ class Tool:
         return None
     
     # 执行工具函数，并将成功、异常和空结果统一转换成 ToolResult。
-    def execute(self, id: str, arguments: dict[str, Any]) -> ToolResult:
+    def execute(self, arguments: dict[str, Any]) -> ToolResult:
         start_time = time.perf_counter()
 
         input_error = self.validate_input(arguments=arguments)
 
         if input_error:
             return ToolResult.error(
-                tool_call_id=id,
                 tool_name=self.name,
                 error_type="invalid_input",
                 message=input_error,
@@ -276,42 +286,73 @@ class Tool:
             )
         
         max_attempts = self.retry_policy.max_retries + 1
+        attempt_records: list[dict[str, Any]] = []
 
         for attempt in range(1, max_attempts + 1):
+            attempt_start_time = time.perf_counter()
             try:
                 data = self.func(**arguments)
             except Exception as exc:
+                attempt_records.append(
+                    {
+                        "attempt": attempt,
+                        "ok": False,
+                        "error_type": "runtime_error",
+                        "message": str(exc),
+                        "latency_ms": self._elapsed_ms(start_time=attempt_start_time),
+                    }
+                )
                 result = ToolResult.error(
-                    tool_call_id=id,
                     tool_name=self.name,
                     error_type="runtime_error",
                     message=str(exc),
                     latency_ms=self._elapsed_ms(start_time=start_time),
                     attempts=attempt,
-                    metadata={"exception_type": type(exc).__name__}
+                    metadata={
+                        "exception_type": type(exc).__name__,
+                        "attempts": attempt_records,
+                    }
                 )
             else:
                 if data is None:
+                    attempt_records.append(
+                        {
+                            "attempt": attempt,
+                            "ok": False,
+                            "error_type": "empty_result",
+                            "message": "Tool returned no data",
+                            "latency_ms": self._elapsed_ms(start_time=attempt_start_time),
+                        }
+                    )
                     result = ToolResult.error(
-                        tool_call_id=id,
                         tool_name=self.name,
                         error_type="empty_result",
                         message="Tool returned no data",
                         latency_ms=self._elapsed_ms(start_time=start_time),
                         attempts=attempt,
+                        metadata={"attempts": attempt_records},
                     )
-
-                return ToolResult.success(
-                    tool_call_id=id,
-                    tool_name=self.name,
-                    data = data,
-                    latency_ms=self._elapsed_ms(start_time=start_time),
-                    attempts=attempt,
+                else:
+                    attempt_records.append(
+                        {
+                            "attempt": attempt,
+                            "ok": True,
+                            "error_type": None,
+                            "message": None,
+                            "latency_ms": self._elapsed_ms(start_time=attempt_start_time),
+                        }
+                    )
+                    return ToolResult.success(
+                        tool_name=self.name,
+                        data=data,
+                        latency_ms=self._elapsed_ms(start_time=start_time),
+                        attempts=attempt,
+                        metadata={"attempts": attempt_records},
                 )
             
             should_retry = (
-            result.error_type in self.retry_policy.retry_on
-            and attempt < max_attempts
+                result.error_type in self.retry_policy.retry_on
+                and attempt < max_attempts
             )
 
             if not should_retry:
@@ -365,53 +406,61 @@ class ToolRegistry:
         return [tool.to_openai_schema() for tool in self._tools.values()]
     
     # 执行一个已经解析为 name 和 arguments 的工具调用。
-    def execute(self, id: str, name: str, arguments: dict[str, Any]) -> ToolResult:
+    def execute(self, name: str, arguments: dict[str, Any]) -> ToolResult:
         tool = self.get(name)
 
         if tool is None:
             return ToolResult.error(
-                tool_call_id=id,
                 tool_name=name,
                 error_type=ERROR_UNKNOWN_TOOL,
                 message=f"Tool {name!r} is not registered."
             )
         
-        return tool.execute(id=id, arguments=arguments) 
+        return tool.execute(arguments=arguments) 
     
     # 从模型返回的原始 tool_call 中解析名称和参数，并执行对应工具。
-    def execute_tool_call(self, tool_call: Any) -> ToolResult:
-        id = tool_call.id
+    def execute_tool_call(self, tool_call: Any) -> ToolCallResult:
+        tool_call_id = tool_call.id
         name = tool_call.function.name
         raw_arguments = tool_call.function.arguments
 
         if not self.has(name):
-            return ToolResult.error(
-                tool_call_id=id,
-                tool_name=name,
-                error_type=ERROR_UNKNOWN_TOOL,
-                message=f"Tool {name!r} is not registered.",
+            return ToolCallResult(
+                tool_call_id=tool_call_id,
+                result=ToolResult.error(
+                    tool_name=name,
+                    error_type=ERROR_UNKNOWN_TOOL,
+                    message=f"Tool {name!r} is not registered.",
+                ),
             )
         
         try:
             arguments = json.loads(raw_arguments or "{}")
 
         except json.JSONDecodeError as exc:
-            return ToolResult.error(
-                tool_call_id=id,
-                tool_name=name,
-                error_type=ERROR_INVALID_JSON,
-                message=str(exc),
+            return ToolCallResult(
+                tool_call_id=tool_call_id,
+                result=ToolResult.error(
+                    tool_name=name,
+                    error_type=ERROR_INVALID_JSON,
+                    message=str(exc),
+                ),
             )
         
         if not isinstance(arguments, dict):
-            return ToolResult.error(
-                tool_call_id=id,
-                tool_name=name,
-                error_type=ERROR_INVALID_JSON,
-                message="Tool call arguments must be a JSON object.",
+            return ToolCallResult(
+                tool_call_id=tool_call_id,
+                result=ToolResult.error(
+                    tool_name=name,
+                    error_type=ERROR_INVALID_JSON,
+                    message="Tool call arguments must be a JSON object.",
+                ),
             )
 
-        return self.execute(id, name, arguments)
+        return ToolCallResult(
+            tool_call_id=tool_call_id,
+            result=self.execute(name, arguments),
+        )
     
 # 创建项目默认工具注册表，集中维护内置工具定义。
 def build_default_registry() -> ToolRegistry:
@@ -432,7 +481,7 @@ def build_default_registry() -> ToolRegistry:
                 "required": ["location"],
             },
             func=get_weather,
-            retry_policy=RetryPolicy(max_retries=3, delay_seconds=0.5, retry_on=("runtime_error")),
+            retry_policy=RetryPolicy(max_retries=3, delay_seconds=0.5, retry_on=("runtime_error",)),
         )
     )
 
