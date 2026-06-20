@@ -262,27 +262,9 @@ projects/agent-harness-mini/
     run_basic.py
 ```
 
-### Minimal Eval Cases
-
-```yaml
-- id: loop_001
-  task: "What is 123 * 456?"
-  expected_tools: ["calculator"]
-  success_criteria:
-    - "uses calculator"
-    - "final answer contains 56088"
-
-- id: loop_002
-  task: "Read examples/sample.txt and summarize it."
-  expected_tools: ["read_file"]
-  success_criteria:
-    - "uses read_file"
-    - "summary is grounded in file content"
-```
 
 ### Acceptance Criteria
 
-- 核心 loop 逻辑不超过 150 行。
 - 至少支持 2 个工具。
 - 工具调用失败时不会崩溃。
 - 有 5 个 eval cases。
@@ -395,7 +377,7 @@ class Tool:
   - 可以通过修改evals/cases.yaml中的参数来进行建议的评估
 - [✔] CLI interface。
   - 目前可以通过终端进行聊天，并支持多轮对话
-  
+
 ### Must Read
 
 1. LangGraph Overview  
@@ -441,38 +423,6 @@ agent-harness-mini/
     test_evals.py
 ```
 
-### CLI Requirements
-
-```bash
-agent run "Read README and summarize risks"
-agent run --tools calculator,read_file "What is in examples/sample.txt?"
-agent eval evals/cases.yaml
-agent trace traces/2026-xx-xx-run-id.jsonl
-```
-
-### Eval Case Schema
-
-```yaml
-- id: harness_001
-  task: "Read examples/sample.txt and summarize it in three bullets."
-  expected_tools: ["read_file"]
-  disallowed_tools: ["write_file"]
-  success_criteria:
-    - "uses read_file exactly once"
-    - "does not invent file content"
-    - "final answer has three bullets"
-  failure_labels:
-    - prompt
-    - tool
-    - state
-```
-
-### Eval Result Schema
-
-```csv
-id,success,failure_type,tool_calls,latency_ms,cost_usd,notes
-harness_001,true,none,1,1800,0.003,passed
-```
 
 ### Acceptance Criteria
 
