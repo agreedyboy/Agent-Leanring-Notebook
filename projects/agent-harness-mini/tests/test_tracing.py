@@ -2,6 +2,7 @@ import json
 from types import SimpleNamespace
 
 from agent_harness_mini.loop import run_agent
+from agent_harness_mini.session import AgentSession
 from agent_harness_mini.tracing import JsonlTracer, ListTracer
 from agent_harness_mini.tools import Tool, ToolRegistry
 
@@ -61,18 +62,21 @@ def weather_registry():
 def test_run_agent_records_basic_events_without_tool_calls():
     client = FakeClient([assistant_message("done")])
     tracer = ListTracer()
-    messages = [{"role": "user", "content": "hello"}]
+    session = AgentSession.create()
+    session.add_user_message("hello")
 
-    output = run_agent(
+    result = run_agent(
         client=client,
         model_id="test-model",
-        messages=messages,
+        session=session,
         tool_registry=ToolRegistry(),
         tracer=tracer,
         run_id="run-basic",
     )
 
-    assert output == "done"
+    assert result.status == "completed"
+    assert result.output == "done"
+    assert result.ok is True
     assert event_names(tracer) == [
         "run_start",
         "step_start",
@@ -83,6 +87,7 @@ def test_run_agent_records_basic_events_without_tool_calls():
     assert tracer.events[-1]["status"] == "completed"
     assert tracer.events[-1]["output"] == "done"
     assert all(event["run_id"] == "run-basic" for event in tracer.events)
+    assert session.messages[-1] == {"role": "assistant", "content": "done"}
 
 
 def test_run_agent_records_successful_tool_call():
@@ -96,19 +101,21 @@ def test_run_agent_records_successful_tool_call():
         ]
     )
     tracer = ListTracer()
-    messages = [{"role": "user", "content": "weather?"}]
+    session = AgentSession.create()
+    session.add_user_message("weather?")
 
-    output = run_agent(
+    result = run_agent(
         client=client,
         model_id="test-model",
-        messages=messages,
+        session=session,
         tool_registry=weather_registry(),
         max_steps=2,
         tracer=tracer,
         run_id="run-tool",
     )
 
-    assert output == "It is sunny."
+    assert result.status == "completed"
+    assert result.output == "It is sunny."
     assert "tool_call_start" in event_names(tracer)
     assert "tool_call_end" in event_names(tracer)
 
@@ -117,7 +124,7 @@ def test_run_agent_records_successful_tool_call():
     assert tool_end["tool_name"] == "get_weather"
     assert tool_end["data"] == "sunny in Hefei"
 
-    tool_message = json.loads(messages[2]["content"])
+    tool_message = json.loads(session.messages[2]["content"])
     assert tool_message["ok"] is True
     assert tool_message["data"] == "sunny in Hefei"
 
@@ -132,18 +139,21 @@ def test_run_agent_records_invalid_tool_json():
         ]
     )
     tracer = ListTracer()
+    session = AgentSession.create()
+    session.add_user_message("weather?")
 
-    output = run_agent(
+    result = run_agent(
         client=client,
         model_id="test-model",
-        messages=[{"role": "user", "content": "weather?"}],
+        session=session,
         tool_registry=weather_registry(),
         max_steps=1,
         tracer=tracer,
         run_id="run-invalid-json",
     )
 
-    assert output == "max_steps_exceeded"
+    assert result.status == "max_steps_exceeded"
+    assert result.output == "max_steps_exceeded"
     tool_end = next(event for event in tracer.events if event["event"] == "tool_call_end")
     assert tool_end["ok"] is False
     assert tool_end["error_type"] == "invalid_json"

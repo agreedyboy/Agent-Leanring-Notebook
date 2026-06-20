@@ -18,7 +18,7 @@
 
 1. 能从零实现一个最小 Agent loop。
 2. 能设计和执行 tool calling / function calling。
-3. 能实现 tool registry、schema validation、timeout、retry、permission gate。
+3. 能实现 tool registry、schema validation、timeout、retry，并能说明 permission gate 的设计边界。
 4. 能构建一个带引用、带 citation verifier、带失败分析的 RAG / Research Agent。
 5. 能为 Agent 写固定 eval cases，并记录 success rate、failure type、latency、cost、tool calls。
 6. 能用 trace 解释一次 Agent 运行过程中的 LLM call、tool call、state change 和 failure。
@@ -55,13 +55,13 @@
 最终简历定位可以写成：
 
 ```text
-CS undergraduate focused on LLM agent engineering. Built a minimal agent harness and a document-grounded RAG agent with structured tool calling, tracing, evaluation, citation verification, and safety controls.
+CS undergraduate focused on LLM agent engineering. Built a minimal agent harness and a document-grounded RAG agent with structured tool calling, tracing, evaluation, citation verification, and failure analysis.
 ```
 
 中文表达：
 
 ```text
-我理解 Agent 的工程边界，能实现工具调用、状态管理、权限控制、trace 和 eval，并能把它们落到可运行项目里。
+我理解 Agent 的工程边界，能实现工具调用、状态管理、trace 和 eval，并能说明权限控制等安全机制应该在什么场景下引入。
 ```
 
 重点不是说“我学过很多 Agent 框架”，而是证明：
@@ -80,7 +80,7 @@ CS undergraduate focused on LLM agent engineering. Built a minimal agent harness
 | --- | --- | --- |
 | 1 | Minimal Agent Loop | 不理解 loop，就只是在调框架 API。 |
 | 2 | Tool Calling | Agent 的核心能力来自可控工具执行。 |
-| 3 | Tool Harness | 真正的工程能力在工具注册、权限、状态、trace、eval。 |
+| 3 | Tool Harness | 真正的工程能力在工具注册、状态、trace、eval 和错误处理。 |
 | 4 | RAG With Citations | 很多实习项目本质是企业知识库 / 搜索 / 报告生成。 |
 | 5 | Evaluation | 没有 eval 的 Agent 只能算 demo。 |
 | 6 | Coding / Research Agent Pattern | 代码审查、搜索研究、报告生成是高价值落地方向。 |
@@ -296,6 +296,8 @@ projects/agent-harness-mini/
 
 目标：从“能调工具”升级到“可靠地调工具”。
 
+范围说明：`Agent Harness Mini` 当前阶段是学习型 harness，重点是亲手理解 function calling、tool registry、schema validation、timeout、retry、trace 等核心模块。暂不实现 `requires_permission` / permission gate；危险工具权限、路径 allowlist、human approval 等安全机制留到后续复现 Coding Review / Web Research / Shell 工具类项目时实现。
+
 ### Checklist
 
 - [✔] 设计 `Tool` 抽象。
@@ -306,10 +308,10 @@ projects/agent-harness-mini/
 - [✔] 工具有 timeout。
 - [✔] 工具有 retry policy。
 - [✔] 工具有统一错误对象。
-- [✔] 工具错误至少区分 invalid input、timeout、permission denied、empty result、runtime error。
+- [✔] 工具错误至少区分 invalid input、timeout、empty result、runtime error。
 
-- [ ] 对危险工具加入 permission gate。
-  - 目前还涉及不到危险工具，因此暂时不设计permission gate，等后续复现项目时再实现
+- [→] 暂不实现 permission gate。
+  - 当前项目不引入危险工具，permission gate 留到后续复现项目中实现。
 
 - [✔] 每次工具调用写入 JSONL trace。
   - tracing 的逻辑写在loops中
@@ -325,18 +327,8 @@ class Tool:
     description: str
     input_schema: dict
     output_schema: dict
-    requires_permission: bool
     timeout_seconds: int
     retry_policy: dict
-```
-
-### Tool Registry
-
-```python
-registry.register(calculator)
-registry.register(read_file)
-registry.register(write_file)
-registry.get("calculator")
 ```
 
 ### Unified Tool Result
@@ -375,22 +367,14 @@ registry.get("calculator")
 3. Anthropic Tool Use Overview  
    重点看 tool result 如何回传、模型如何继续推理。
 
-### Optional
 
-1. smolagents  
-   用途：参考轻量 agent 框架如何定义工具。
-
-2. LangChain Tools  
-   用途：参考成熟框架的 tool abstraction，但不要直接照搬。
 
 ### Acceptance Criteria
 
 - 支持 3-5 个工具。
 - 每次工具调用都有 trace。
 - 错误能被 agent 继续处理，而不是直接中断。
-- 有 10 个 eval cases。
-- 至少一个工具需要 permission approval。
-- 能解释 schema、timeout、retry、permission 的设计取舍。
+- 能解释 schema、timeout、retry 的设计取舍，并说明为什么当前项目暂缓 permission gate。
 
 ---
 
@@ -400,16 +384,18 @@ registry.get("calculator")
 
 ### Checklist
 
-- [ ] Agent loop。
-- [ ] Tool registry。
-- [ ] Session state。
-- [ ] Trace logger。
-- [ ] Permission gate。
+- [✔] Agent loop。
+- [✔] Tool registry。
+- [✔] Session state / memory。
+  - 实现了简易的memory，即将历史上下文全部保存，下次对话时将这些上下文全部交给LLM
+- [✔] Trace logger。
 - [ ] Context management。
 - [ ] Max steps / timeout / retry。
-- [ ] Eval runner。
-- [ ] CLI interface。
-
+- [✔] Eval runner。
+  - 可以通过修改evals/cases.yaml中的参数来进行建议的评估
+- [✔] CLI interface。
+  - 目前可以通过终端进行聊天，并支持多轮对话
+  
 ### Must Read
 
 1. LangGraph Overview  
@@ -431,7 +417,6 @@ agent-harness-mini/
     loop.py
     tools.py
     registry.py
-    permissions.py
     tracing.py
     session.py
     context.py
@@ -480,7 +465,6 @@ agent trace traces/2026-xx-xx-run-id.jsonl
     - prompt
     - tool
     - state
-    - permission
 ```
 
 ### Eval Result Schema
@@ -495,9 +479,8 @@ harness_001,true,none,1,1800,0.003,passed
 - 可以通过 CLI 运行。
 - 有 JSONL trace。
 - 有 eval runner。
-- 至少 15 条 eval cases，覆盖正常工具调用、工具失败、权限拒绝、重复调用、max_steps。
+- 至少 15 条 eval cases，覆盖正常工具调用、工具失败、重复调用、max_steps。
 - README 能让别人 clone 后 10 分钟内跑通。
-- 至少一个危险工具有 permission gate。
 - 有 `make test` / `make eval` 或等价命令。
 - 能用一张架构图解释模块关系。
 - 通过 Gate A 后才能进入 RAG 项目的深度开发。
@@ -704,7 +687,7 @@ def verify_citations(answer, retrieved_chunk_ids):
 
 ```text
 只有同时满足以下条件才做 Stage 6：
-1. Agent Harness Mini 已有 CLI、trace、eval runner、permission gate。
+1. Agent Harness Mini 已有 CLI、trace、eval runner，并能说明 permission gate 为什么留到应用型项目实现。
 2. RAG / Research Agent 已有 citation verifier、20+ eval cases、5+ unanswerable cases。
 3. 两个 P0 项目的 README 都能让别人独立跑通。
 ```
@@ -913,7 +896,7 @@ eval 的优先级不是单纯追数量，而是先覆盖失败类型。数量是
 | Stage | Minimum Eval Cases | Focus |
 | --- | ---: | --- |
 | Stage 1 | 5 | tool call 是否正确，loop 是否停止。 |
-| Stage 2 | 10 | 工具错误、timeout、permission、retry。 |
+| Stage 2 | 10 | 工具错误、timeout、retry。 |
 | Stage 3 | 15 | harness regression、trace、CLI。 |
 | Stage 4 | 20 | RAG answerability、citation。 |
 | Stage 5 | 20+ | hybrid retrieval、citation verifier、failure analysis。 |
@@ -926,9 +909,7 @@ Harness eval:
 - 正常工具调用
 - 工具参数错误
 - 工具 timeout
-- permission denied
 - max_steps exceeded
-- 不应调用危险工具
 
 RAG eval:
 - answerable
@@ -945,8 +926,8 @@ RAG eval:
 | Stage | Minimum Safety Requirement |
 | --- | --- |
 | Stage 1 | max_steps、工具异常不会崩溃 |
-| Stage 2 | permission gate、path allowlist、timeout |
-| Stage 3 | trace 记录 permission / tool failure |
+| Stage 2 | timeout、retry、工具错误归一化 |
+| Stage 3 | trace 记录 tool failure / max_steps / retry |
 | Stage 4 | retrieved content 不得覆盖系统指令 |
 | Stage 5 | citation verifier、abstention policy |
 | Stage 6 | shell / linter / web search 需要 sandbox 或 allowlist |
@@ -982,7 +963,7 @@ rag_001,true,none,1,2300,0.01,passed
 | citation | 引用了不存在或无关的来源。 |
 | model | 推理错误或不稳定。 |
 | state | session / memory 污染。 |
-| permission | 权限拒绝或危险操作未确认。 |
+| permission | 后续应用型项目中的权限拒绝或危险操作未确认。 |
 | context | 上下文过长、截断、错误压缩。 |
 | cost | 成本过高，不适合实际运行。 |
 | latency | 响应太慢，不适合交互式使用。 |
@@ -1030,7 +1011,7 @@ rag_001,true,none,1,2300,0.01,passed
 | --- | --- | --- | --- |
 | Week 1 | Agent 边界、workflow vs agent、minimal loop skeleton | `notes/when-to-use-agent.md` + `agent-harness-mini` skeleton | Anthropic Building Effective Agents; OpenAI Practical Guide |
 | Week 2 | Function calling、structured output、2-3 个工具、5 条 eval | Agent Harness Mini v0 | OpenAI Function Calling; Claude Tool Use |
-| Week 3 | Tool registry、schema、timeout、retry、error handling、permission gate | Agent Harness Mini v1 | OpenAI Tools; OpenAI Agents SDK Tools |
+| Week 3 | Tool registry、schema、timeout、retry、error handling | Agent Harness Mini v1 | OpenAI Tools; OpenAI Agents SDK Tools |
 | Week 4 | JSONL trace、tool failure eval、10 条 eval cases | Harness trace + eval v0 | OpenAI Tracing; LangSmith Evaluation concepts |
 | Week 5 | CLI、session state、context management、eval runner、15 条 eval | Agent Harness Mini v2；通过 Gate A | LangGraph Overview; OpenAI Agents SDK |
 | Week 6 | RAG ingestion、chunking、embedding retrieval、basic trace | RAG pipeline v0 | LlamaIndex RAG; LangChain RAG concepts |
@@ -1166,7 +1147,7 @@ evals/
 
 ## 3. Architecture
 
-模块图：LLM、tools、state、trace、eval、permission、retrieval 等。
+模块图：LLM、tools、state、trace、eval、retrieval，以及后续可扩展的 permission / sandbox 模块。
 
 ## 4. Features
 
@@ -1216,7 +1197,7 @@ eval cases、results、failure types、known failures。
 ## Agent Harness Mini
 
 ```text
-Built a minimal Python agent harness with structured tool calling, tool registry, timeout/retry handling, permission gates, JSONL tracing, CLI execution, and regression eval runner.
+Built a minimal Python agent harness with structured tool calling, tool registry, timeout/retry handling, JSONL tracing, CLI execution, and regression eval runner.
 ```
 
 ## RAG / Research Agent
@@ -1263,7 +1244,7 @@ Designed an agent evaluation suite tracking success rate, failure type, tool-cal
 - tool schema 怎么设计？
 - 工具调用失败怎么办？
 - 如何避免重复调用和死循环？
-- 危险工具如何加权限控制？
+- 什么时候需要给危险工具加权限控制？
 - tool registry 的职责是什么？
 - retry 和 timeout 应该放在哪里？
 
@@ -1273,7 +1254,7 @@ Designed an agent evaluation suite tracking success rate, failure type, tool-cal
 - trace 应该记录什么？
 - session 和 memory 有什么区别？
 - context 太长怎么办？
-- permission gate 应该拦截哪些动作？
+- permission gate 适合留在哪类工具或项目中实现？
 - 为什么需要 CLI 和 eval runner？
 
 ## RAG
@@ -1338,7 +1319,7 @@ Designed an agent evaluation suite tracking success rate, failure type, tool-cal
 - [ ] 每个项目有 examples。
 - [ ] 至少一个项目有 eval runner。
 - [ ] 至少一个项目有 trace log。
-- [ ] 至少一个项目实现 permission gate。
+- [ ] 至少一个应用型项目能说明或实现 permission gate / sandbox / allowlist 等安全边界。
 - [ ] RAG 项目有 citation verifier。
 - [ ] RAG 项目有 unanswerable eval cases。
 - [ ] 简历中没有虚构能力。
@@ -1356,19 +1337,19 @@ Designed an agent evaluation suite tracking success rate, failure type, tool-cal
 九月初你的求职定位可以是：
 
 ```text
-CS undergraduate focused on LLM agent engineering. Built a minimal agent harness and a document-grounded RAG agent with structured tool calling, tracing, evaluation, citation verification, and safety controls.
+CS undergraduate focused on LLM agent engineering. Built a minimal agent harness and a document-grounded RAG agent with structured tool calling, tracing, evaluation, citation verification, and failure analysis.
 ```
 
 更短版本：
 
 ```text
-LLM agent engineering candidate with hands-on experience in tool calling, RAG, tracing, evals, and safety controls.
+LLM agent engineering candidate with hands-on experience in tool calling, RAG, tracing, evals, and failure analysis.
 ```
 
 中文口径：
 
 ```text
-我不是只会调框架 API，而是能实现一个最小 Agent harness，包括工具注册、状态管理、权限控制、trace、eval 和失败分析；同时能把这套机制应用到 RAG 或代码审查等具体场景里。
+我不是只会调框架 API，而是能实现一个最小 Agent harness，包括工具注册、状态管理、trace、eval 和失败分析；同时能把这套机制应用到 RAG 或代码审查等具体场景里，并说明安全边界应如何扩展。
 ```
 
 ---

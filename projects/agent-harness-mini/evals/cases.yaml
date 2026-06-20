@@ -1,0 +1,36 @@
+version: 1
+
+defaults:
+  max_steps: 3
+  system_prompt: "You are a helpful assistant."
+
+cases:
+  - id: greeting_no_tool
+    input: "Hello"
+    expected:
+      status: completed
+      disallowed_tools:
+        - get_weather
+        - get_user_profile
+      final_contains_any:
+        - hello
+        - hi
+
+  - id: weather_hefei
+    input: "What is the weather in Hefei?"
+    expected:
+      status: completed
+      expected_tools:
+        - get_weather
+      final_contains_any:
+        - Hefei
+        - hefei
+
+  - id: profile_lookup
+    input: "Do you know who I am?"
+    expected:
+      status: completed
+      expected_tools:
+        - get_user_profile
+      final_contains:
+        - Alex

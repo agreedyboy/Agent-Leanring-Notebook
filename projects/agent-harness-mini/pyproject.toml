@@ -9,8 +9,12 @@ description = "A minimal agent harness built for learning tool calling and evalu
 requires-python = ">=3.10"
 dependencies = [
     "openai>=1.0.0",
+    "PyYAML>=6.0",
     "python-dotenv>=1.0.0",
 ]
+
+[project.scripts]
+agent-harness-mini = "agent_harness_mini.cli:main"
 
 [project.optional-dependencies]
 dev = [

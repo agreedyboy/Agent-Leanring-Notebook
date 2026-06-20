@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import string
 import time
+import requests
 from typing import Any, Callable, Iterable
 from dataclasses import dataclass, field
 
@@ -66,7 +67,42 @@ tools = [
 
 # 根据传入地点返回模拟天气信息。
 def get_weather(location: str, **kwargs)->str:
-    return f"The weather in {location} is sunny!"
+    """
+    获取指定城市的当前天气情况。
+    :param location: 城市名称 (例如: "Beijing", "Tokyo", "New York")
+    :return: 包含天气描述的字符串
+    """
+    try:
+        # 1. 坐标转换：将城市名转换为经纬度
+        geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={location}&count=1&language=en"
+        geo_res = requests.get(geo_url).json()
+        
+        if not geo_res.get("results"):
+            return f"Error: Cannot find location '{location}'."
+        
+        loc_data = geo_res["results"][0]
+        lat = loc_data["latitude"]
+        lon = loc_data["longitude"]
+        city_name = loc_data["name"]
+        
+        # 2. 请求天气数据
+        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
+        weather_res = requests.get(weather_url).json()
+        
+        current = weather_res.get("current_weather")
+        if not current:
+            return "Error: Failed to retrieve weather data."
+        
+        # 3. 提取核心指标
+        temp = current["temperature"]
+        windspeed = current["windspeed"]
+        # WMO Weather interpretation codes (简化处理)
+        weather_code = current["weathercode"] 
+        
+        return f"The current weather in {city_name} is: Temperature {temp}°C, Wind Speed {windspeed} km/h. (Weather Code: {weather_code})"
+        
+    except Exception as e:
+        return f"An error occurred: {str(e)}"
 
 
 # 返回当前用户的模拟画像信息。
@@ -170,7 +206,10 @@ class ToolResult:
 
 @dataclass(frozen=True, slots=True)
 class ToolCallResult:
-    """Result wrapper for one model tool_call."""
+    """Result wrapper for one model tool_call.
+        Function call的结果为ToolResult，但是并不包含call id, call id又不适合作为参数传给Tool，因此定义ToolCallResult类
+        来为工具调用结果增加call id属性
+    """
 
     tool_call_id: str
     result: ToolResult
@@ -193,6 +232,7 @@ class RetryPolicy:
 class Tool:
     """
     工具类
+    需要包含工具名、描述、input schema, output schema等等属性，同时需要提供execute行为
     其需要处理invalid_input, runtime_error, empty_result, timeout, retry等边界问题
     同时，其需要计算工具调用耗时
     主要逻辑为，先对输入进行合法性检测，然后调用工具函数
@@ -475,7 +515,7 @@ def build_default_registry() -> ToolRegistry:
                 "properties": {
                     "location": {
                         "type": "string",
-                        "description": "The city and state, e.g. San Francisco, CA",
+                        "description": "The city name only (e.g., 'Beijing', 'Tokyo', 'New York'). Do NOT include province, state, or country.",
                     }
                 },
                 "required": ["location"],

@@ -6,6 +6,8 @@ from typing import Any
 
 from .tracing import Tracer, emit_trace, new_run_id
 from .tools import ToolCallResult, ToolRegistry
+from .session import AgentSession, AgentRunResult
+
 
 
 def call_model(client: Any, model_id: str, messages: list[dict], tools: list[dict]):
@@ -69,13 +71,13 @@ def build_assistant_message(message: Any) -> dict[str, Any]:
 def run_agent(
     client: Any,
     model_id: str,
-    messages: list[dict],
     tool_registry: ToolRegistry,
+    session: AgentSession | None = None,
     max_steps: int = 3,
     tracer: Tracer | None = None,
     run_id: str | None = None,
     trace_content: bool = True,
-) -> str | None:
+) -> AgentRunResult:
     """
     Run one agent loop.
 
@@ -86,13 +88,17 @@ def run_agent(
     active_run_id = run_id or new_run_id()
     run_start_time = time.perf_counter()
 
+    if session is None:
+        session = AgentSession.create({"role": "system", "content": "You are a helpful assistant"})
+
     emit_trace(
         tracer,
         "run_start",
         run_id=active_run_id,
+        session_id = session.session_id,
         model_id=model_id,
         max_steps=max_steps,
-        initial_message_count=len(messages),
+        initial_message_count=len(session.to_model_messages()),
         tool_count=len(tool_registry.names()),
     )
 
@@ -102,7 +108,7 @@ def run_agent(
             "step_start",
             run_id=active_run_id,
             step=step,
-            message_count=len(messages),
+            message_count=len(session.to_model_messages()),
         )
 
         model_start_time = time.perf_counter()
@@ -112,7 +118,7 @@ def run_agent(
             run_id=active_run_id,
             step=step,
             model_id=model_id,
-            message_count=len(messages),
+            message_count=len(session.to_model_messages()),
 
         )
 
@@ -120,7 +126,7 @@ def run_agent(
             assistant_response = call_model(
                 client=client,
                 model_id=model_id,
-                messages=messages,
+                messages=session.to_model_messages(),
                 tools=tool_registry.to_openai_tools(),
             )
         except Exception as exc:
@@ -159,20 +165,27 @@ def run_agent(
             tool_call_count=len(tool_calls),
             assistant_message=assistant_message if trace_content else None,
         )
-
-        messages.append(assistant_message)
+        session.add_assistant_message(assistant_message)
 
         if not tool_calls:
             emit_trace(
                 tracer,
                 "run_end",
                 run_id=active_run_id,
+                session_id = session.session_id,
                 status="completed",
                 steps=step + 1,
                 output=assistant_response.content if trace_content else None,
                 latency_ms=_elapsed_ms(run_start_time),
             )
-            return assistant_response.content
+            return AgentRunResult(
+                run_id=active_run_id,
+                session_id=session.session_id,
+                status="completed",
+                output=assistant_response.content,
+                steps=step + 1,
+                latency_ms=_elapsed_ms(run_start_time),
+            )
 
         for tool_call in tool_calls:
             emit_trace(
@@ -210,8 +223,7 @@ def run_agent(
                     result.metadata.get("attempts") if trace_content else None
                 ),
             )
-
-            messages.append(build_tool_message(tool_call_result=tool_call_result))
+            session.add_tool_message(build_tool_message(tool_call_result=tool_call_result))
 
     emit_trace(
         tracer,
@@ -220,5 +232,12 @@ def run_agent(
         status="max_steps_exceeded",
         steps=max_steps,
         latency_ms=_elapsed_ms(run_start_time),
+    ) 
+    return AgentRunResult(
+        run_id=active_run_id,
+        session_id=session.session_id,
+        status="max_steps_exceeded",
+        output="max_steps_exceeded",
+        steps=max_steps,
+        latency_ms=_elapsed_ms(run_start_time),
     )
-    return "max_steps_exceeded"

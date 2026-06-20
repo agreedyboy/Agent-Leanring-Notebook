@@ -220,3 +220,4 @@ __marimo__/
 
 # tracing
 *.jsonl
+*.csv

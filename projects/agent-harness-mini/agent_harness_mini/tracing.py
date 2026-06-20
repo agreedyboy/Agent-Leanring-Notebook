@@ -102,7 +102,7 @@ class NullTracer:
 
 
 @dataclass
-class ListTracer:
+class ListTracer(Tracer):
     """In-memory tracer useful for tests and notebooks."""
 
     events: list[TraceEvent] = field(default_factory=list)
@@ -111,7 +111,7 @@ class ListTracer:
         self.events.append(build_event(event, **fields))
 
 
-class JsonlTracer:
+class JsonlTracer(Tracer):
     """Append trace events to a JSONL file."""
 
     def __init__(self, path: str | Path) -> None:
@@ -120,5 +120,11 @@ class JsonlTracer:
 
     def record(self, event: str, **fields: Any) -> None:
         payload = build_event(event, **fields)
+
+        line = json.dumps(payload, ensure_ascii=False) + "\n"
+
+        if event == "run_end":
+                line += "\n"
+
         with self.path.open("a", encoding="utf-8") as file:
-            file.write(json.dumps(payload, ensure_ascii=False) + "\n")
+            file.write(line)
