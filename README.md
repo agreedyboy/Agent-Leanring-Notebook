@@ -430,7 +430,6 @@ agent-harness-mini/
 - 有 JSONL trace。
 - 有 eval runner。
 - 至少 15 条 eval cases，覆盖正常工具调用、工具失败、重复调用、max_steps。
-- README 能让别人 clone 后 10 分钟内跑通。
 - 有 `make test` / `make eval` 或等价命令。
 - 能用一张架构图解释模块关系。
 - 通过 Gate A 后才能进入 RAG 项目的深度开发。

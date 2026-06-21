@@ -4,6 +4,7 @@ import json
 import time
 from typing import Any
 
+from .context import ContextWindow
 from .tracing import Tracer, emit_trace, new_run_id
 from .tools import ToolCallResult, ToolRegistry
 from .session import AgentSession, AgentRunResult
@@ -77,6 +78,7 @@ def run_agent(
     tracer: Tracer | None = None,
     run_id: str | None = None,
     trace_content: bool = True,
+    context_window: ContextWindow | None = None,
 ) -> AgentRunResult:
     """
     Run one agent loop.
@@ -91,34 +93,44 @@ def run_agent(
     if session is None:
         session = AgentSession.create({"role": "system", "content": "You are a helpful assistant"})
 
+    active_context_window = context_window or ContextWindow()
+    initial_model_messages = active_context_window.build_messages(session)
+
     emit_trace(
         tracer,
         "run_start",
-        run_id=active_run_id,
         session_id = session.session_id,
+        run_id=active_run_id,
         model_id=model_id,
         max_steps=max_steps,
-        initial_message_count=len(session.to_model_messages()),
+        initial_message_count=len(initial_model_messages),
+        session_message_count=len(session.to_model_messages()),
         tool_count=len(tool_registry.names()),
     )
 
     for step in range(max_steps):
+        model_messages = active_context_window.build_messages(session)
+
         emit_trace(
             tracer,
             "step_start",
+            session_id = session.session_id,
             run_id=active_run_id,
             step=step,
-            message_count=len(session.to_model_messages()),
+            message_count=len(model_messages),
+            session_message_count=len(session.to_model_messages()),
         )
 
         model_start_time = time.perf_counter()
         emit_trace(
             tracer,
             "model_call_start",
+            session_id = session.session_id,
             run_id=active_run_id,
             step=step,
             model_id=model_id,
-            message_count=len(session.to_model_messages()),
+            message_count=len(model_messages),
+            session_message_count=len(session.to_model_messages()),
 
         )
 
@@ -126,13 +138,14 @@ def run_agent(
             assistant_response = call_model(
                 client=client,
                 model_id=model_id,
-                messages=session.to_model_messages(),
+                messages=model_messages,
                 tools=tool_registry.to_openai_tools(),
             )
         except Exception as exc:
             emit_trace(
                 tracer,
                 "model_call_end",
+                session_id = session.session_id,
                 run_id=active_run_id,
                 step=step,
                 ok=False,
@@ -143,6 +156,7 @@ def run_agent(
             emit_trace(
                 tracer,
                 "run_end",
+                session_id = session.session_id,
                 run_id=active_run_id,
                 status="error",
                 steps=step,
@@ -158,6 +172,7 @@ def run_agent(
         emit_trace(
             tracer,
             "model_call_end",
+            session_id = session.session_id,
             run_id=active_run_id,
             step=step,
             ok=True,
@@ -171,8 +186,8 @@ def run_agent(
             emit_trace(
                 tracer,
                 "run_end",
-                run_id=active_run_id,
                 session_id = session.session_id,
+                run_id=active_run_id,
                 status="completed",
                 steps=step + 1,
                 output=assistant_response.content if trace_content else None,
@@ -191,6 +206,7 @@ def run_agent(
             emit_trace(
                 tracer,
                 "tool_call_start",
+                session_id = session.session_id,
                 run_id=active_run_id,
                 step=step,
                 tool_call_id=tool_call.id,
@@ -209,6 +225,7 @@ def run_agent(
             emit_trace(
                 tracer,
                 "tool_call_end",
+                session_id = session.session_id,
                 run_id=active_run_id,
                 step=step,
                 tool_call_id=tool_call_result.tool_call_id,
@@ -228,6 +245,7 @@ def run_agent(
     emit_trace(
         tracer,
         "run_end",
+        session_id = session.session_id,
         run_id=active_run_id,
         status="max_steps_exceeded",
         steps=max_steps,
