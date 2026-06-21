@@ -371,8 +371,8 @@ class Tool:
 - [✔] Session state / memory。
   - 实现了简易的memory，即将历史上下文全部保存，下次对话时将这些上下文全部交给LLM
 - [✔] Trace logger。
-- [ ] Context management。
-- [ ] Max steps / timeout / retry。
+- [✔] Context management。
+- [✔] Max steps / timeout / retry。
 - [✔] Eval runner。
   - 可以通过修改evals/cases.yaml中的参数来进行建议的评估
 - [✔] CLI interface。

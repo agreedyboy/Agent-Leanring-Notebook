@@ -6,15 +6,40 @@ defaults:
 
 cases:
   - id: greeting_no_tool
-    input: "Hello"
+    input: "Say hello in one short sentence."
     expected:
       status: completed
       disallowed_tools:
         - get_weather
         - get_user_profile
+        - calculate
       final_contains_any:
         - hello
         - hi
+
+  - id: direct_text_no_tool
+    input: "Reply with the single word: ready"
+    expected:
+      status: completed
+      disallowed_tools:
+        - get_weather
+        - get_user_profile
+        - calculate
+      final_contains:
+        - ready
+
+  - id: explain_agent_no_tool
+    input: "In one sentence, explain what an AI agent is."
+    expected:
+      status: completed
+      disallowed_tools:
+        - get_weather
+        - get_user_profile
+        - calculate
+      final_contains_any:
+        - tool
+        - task
+        - agent
 
   - id: weather_hefei
     input: "What is the weather in Hefei?"
@@ -26,6 +51,28 @@ cases:
         - Hefei
         - hefei
 
+  - id: weather_beijing
+    input: "Use the weather tool to check the weather in Beijing."
+    expected:
+      status: completed
+      expected_tools:
+        - get_weather
+      final_contains_any:
+        - Beijing
+        - beijing
+
+  - id: weather_unknown_city_failure
+    input: "Use the weather tool to check the weather in NoSuchCityForAgentHarness999."
+    expected:
+      status: completed
+      expected_tools:
+        - get_weather
+      final_contains_any:
+        - cannot
+        - error
+        - failed
+        - unable
+
   - id: profile_lookup
     input: "Do you know who I am?"
     expected:
@@ -34,3 +81,84 @@ cases:
         - get_user_profile
       final_contains:
         - Alex
+
+  - id: profile_membership
+    input: "Use my profile to tell me my membership level."
+    expected:
+      status: completed
+      expected_tools:
+        - get_user_profile
+      final_contains:
+        - VIP
+
+  - id: profile_interests
+    input: "Use my profile to list one of my interests."
+    expected:
+      status: completed
+      expected_tools:
+        - get_user_profile
+      final_contains_any:
+        - AI Technology
+        - Sci-Fi Movies
+
+  - id: calculate_product
+    input: "Use the calculate tool to compute 12 times 8."
+    expected:
+      status: completed
+      expected_tools:
+        - calculate
+      final_contains:
+        - "96"
+
+  - id: calculate_decimal_product
+    input: "Use the calculate tool to compute 2.5 times 3."
+    expected:
+      status: completed
+      expected_tools:
+        - calculate
+      final_contains:
+        - "7.5"
+
+  - id: calculate_without_weather
+    input: "Use the calculate tool for 9 times 9. Do not look up weather or profile data."
+    expected:
+      status: completed
+      expected_tools:
+        - calculate
+      disallowed_tools:
+        - get_weather
+        - get_user_profile
+      final_contains:
+        - "81"
+
+  - id: profile_then_weather_home_city
+    input: "Use my profile to find my home city, then check the weather there."
+    max_steps: 4
+    expected:
+      status: completed
+      expected_tools:
+        - get_user_profile
+        - get_weather
+      final_contains_any:
+        - Beijing
+        - beijing
+
+  - id: compare_two_city_weather
+    input: "Use the weather tool to compare the current weather in Hefei and Beijing."
+    max_steps: 4
+    expected:
+      status: completed
+      expected_tools:
+        - get_weather
+      max_tool_calls: 2
+      final_contains_any:
+        - Hefei
+        - Beijing
+
+  - id: max_steps_weather_single_step
+    input: "Use the weather tool to check the weather in Hefei, then answer based on the tool result."
+    max_steps: 1
+    expected:
+      status: max_steps_exceeded
+      expected_tools:
+        - get_weather

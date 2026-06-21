@@ -78,7 +78,7 @@ def get_weather(location: str, **kwargs)->str:
         geo_res = requests.get(geo_url).json()
         
         if not geo_res.get("results"):
-            raise f"Error: Cannot find location '{location}'."
+            raise RuntimeError(f"Error: Cannot find location '{location}'.")
         
         loc_data = geo_res["results"][0]
         lat = loc_data["latitude"]
@@ -91,7 +91,7 @@ def get_weather(location: str, **kwargs)->str:
         
         current = weather_res.get("current_weather")
         if not current:
-            raise "Error: Failed to retrieve weather data."
+            raise RuntimeError("Error: Failed to retrieve weather data.")
         
         # 3. 提取核心指标
         temp = current["temperature"]
@@ -102,7 +102,7 @@ def get_weather(location: str, **kwargs)->str:
         return f"The current weather in {city_name} is: Temperature {temp}°C, Wind Speed {windspeed} km/h. (Weather Code: {weather_code})"
         
     except Exception as e:
-        raise f"An error occurred: {str(e)}"
+        raise RuntimeError(f"An error occurred: {str(e)}")
 
 
 # 返回当前用户的模拟画像信息。
