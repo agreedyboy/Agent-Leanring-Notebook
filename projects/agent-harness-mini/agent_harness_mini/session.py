@@ -108,6 +108,7 @@ class AgentRunResult:
     @property
     def ok(self) -> bool:
         return self.status == "completed"
+    
 
 def build_session(system_prompt: str, prompt: str) -> AgentSession:
     session = AgentSession.create(system_prompt)

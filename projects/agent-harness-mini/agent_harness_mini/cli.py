@@ -10,8 +10,6 @@ from .session import AgentRunResult, AgentSession, build_session
 from .tools import build_default_registry
 from .tracing import JsonlTracer
 
-from openai import OpenAI
-
 
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant."
 DEFAULT_EVAL_CASE_PROMPT = Path("evals/cases.yaml")
@@ -57,9 +55,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     eval_parser = subparsers.add_parser("eval", help="Run eval cases.")
     eval_parser.add_argument(
-        "--cases_path",
+        "cases_path",
+        nargs="?",
         type=Path,
         default=DEFAULT_EVAL_CASE_PROMPT,
+        help="Path to a YAML or JSON eval cases file.",
+    )
+    eval_parser.add_argument(
+        "--cases-path",
+        "--cases_path",
+        dest="cases_path",
+        type=Path,
+        default=argparse.SUPPRESS,
         help="Path to a YAML or JSON eval cases file.",
     )
     eval_parser.add_argument(
@@ -106,11 +113,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     return parser
 
+def build_openai_client(provider: str):
+    from openai import OpenAI
+
+    config = load_model_config(provider)
+    client = OpenAI(api_key=config.api_key, base_url=config.base_url)
+    return client, config
 
 def run_command(args: argparse.Namespace) -> AgentRunResult:
+    from openai import OpenAI
 
-    config = load_model_config(args.provider)
-    client = OpenAI(api_key=config.api_key, base_url=config.base_url)
+    client, config = build_openai_client(args.provider)
+    
     session = build_session(args.system, args.prompt)
     tracer = JsonlTracer(args.trace) if args.trace else None
 
@@ -142,11 +156,15 @@ def format_eval_summary(summary: EvalSummary) -> str:
 
 
 def eval_command(args: argparse.Namespace) -> int:
+    from openai import OpenAI
+
     from .evals import EvalRunner
 
-    config = load_model_config(args.provider)
-    client = OpenAI(api_key=config.api_key, base_url=config.base_url)
+    client, config = build_openai_client(args.provider)
+
     cases = load_eval_cases(args.cases_path)
+
+    
 
     runner = EvalRunner(
         client=client,
@@ -166,8 +184,10 @@ def eval_command(args: argparse.Namespace) -> int:
     return 0 if summary.failed == 0 else 1
 
 def chat_command(args: argparse.Namespace) -> int:
-    config = load_model_config(args.provider)
-    client = OpenAI(api_key=config.api_key, base_url=config.base_url)
+    from openai import OpenAI
+
+    client, config = build_openai_client(args.provider)
+
     tool_registry = build_default_registry()
     session = AgentSession.create(args.system)
     tracer = JsonlTracer(args.trace) if args.trace else None

@@ -2,7 +2,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from agent_harness_mini.tools import RetryPolicy, Tool, ToolCallResult, ToolRegistry
+from agent_harness_mini.tools import (
+    RetryPolicy,
+    Tool,
+    ToolCallResult,
+    ToolRegistry,
+    build_default_registry,
+)
 
 
 def make_weather_tool(**overrides):
@@ -130,6 +136,24 @@ def test_registry_registers_and_executes_tool():
 
     assert result.ok is True
     assert result.data == "sunny in Hefei"
+
+
+def test_default_registry_executes_calculate_with_numeric_arguments():
+    registry = build_default_registry()
+
+    result = registry.execute("calculate", {"a": 12, "b": 8})
+
+    assert result.ok is True
+    assert result.data == 96
+
+
+def test_default_registry_calculate_rejects_string_numbers():
+    registry = build_default_registry()
+
+    result = registry.execute("calculate", {"a": "12", "b": "8"})
+
+    assert result.ok is False
+    assert result.error_type == "invalid_input"
 
 
 def test_registry_rejects_duplicate_tool_name():

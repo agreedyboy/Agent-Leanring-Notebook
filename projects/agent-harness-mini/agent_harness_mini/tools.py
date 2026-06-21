@@ -78,7 +78,7 @@ def get_weather(location: str, **kwargs)->str:
         geo_res = requests.get(geo_url).json()
         
         if not geo_res.get("results"):
-            return f"Error: Cannot find location '{location}'."
+            raise f"Error: Cannot find location '{location}'."
         
         loc_data = geo_res["results"][0]
         lat = loc_data["latitude"]
@@ -91,7 +91,7 @@ def get_weather(location: str, **kwargs)->str:
         
         current = weather_res.get("current_weather")
         if not current:
-            return "Error: Failed to retrieve weather data."
+            raise "Error: Failed to retrieve weather data."
         
         # 3. 提取核心指标
         temp = current["temperature"]
@@ -102,7 +102,7 @@ def get_weather(location: str, **kwargs)->str:
         return f"The current weather in {city_name} is: Temperature {temp}°C, Wind Speed {windspeed} km/h. (Weather Code: {weather_code})"
         
     except Exception as e:
-        return f"An error occurred: {str(e)}"
+        raise f"An error occurred: {str(e)}"
 
 
 # 返回当前用户的模拟画像信息。
@@ -117,7 +117,11 @@ def get_user_profile(**kwargs):
     }
     return json.dumps(user_data)
 
-
+# 计算a*b
+def calculate(a: float, b: float) -> float:
+    return a * b
+    
+    
 
 @dataclass(frozen=True, slots=True)
 class ToolResult:
@@ -535,6 +539,28 @@ def build_default_registry() -> ToolRegistry:
                 "required": [],
             },
             func=get_user_profile,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="calculate",
+            description="Calculate the product of two numbers.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "a": {
+                        "type": "number",
+                        "description": "The first number.",
+                    },
+                    "b": {
+                        "type": "number",
+                        "description": "The second number.",
+                    },
+                },
+                "required": ["a", "b"],
+            },
+            func=calculate,
         )
     )
 
