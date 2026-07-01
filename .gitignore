@@ -221,3 +221,5 @@ __marimo__/
 # tracing
 *.jsonl
 *.csv
+
+projects/rag-research-agent/models/*

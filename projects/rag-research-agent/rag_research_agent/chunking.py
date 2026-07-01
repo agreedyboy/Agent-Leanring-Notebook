@@ -21,13 +21,13 @@ class Chunk:
     citation 也应该引用 Chunk.id，而不是 Document.id。
     """
 
-    id: str
-    document_id: str
-    source_path: str
-    source_name: str
-    text: str
-    start_char: int
-    end_char: int
+    id: str                  # 格式如 doc_hash#chunk_001
+    document_id: str         # 所属文档的唯一标示
+    text: str                # 喂给模型的核心文本
+    
+    start_char: int          # 字符流起点
+    end_char: int            # 字符流终点
+
     metadata: dict[str, Any] = field(default_factory=dict)
 
 def validate_chunk_settings(chunk_size: int, chunk_overlap: int) -> None:
@@ -115,12 +115,12 @@ def chunk_document(
             Chunk(
                 id=build_chunk_id(document.id, index),
                 document_id=document.id,
-                source_path=document.source_path,
-                source_name=document.source_name,
                 text=chunk_text,
                 start_char=start_char,
                 end_char=end_char,
                 metadata={
+                    "source_path":document.source_path,
+                    "source_name": document.source_name,
                     "chunk_index": index,
                     "chunk_size": chunk_size,
                     "chunk_overlap": chunk_overlap,
