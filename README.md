@@ -444,8 +444,9 @@ agent-harness-mini/
 
 ### Checklist
 
-- [ ] 支持 PDF / Markdown / TXT ingestion。
-- [ ] 实现 chunking。
+- [✔] 支持 PDF / Markdown / TXT ingestion。
+  - PDF目前暂不支持，只支持.md与.text格式文件的解析
+- [✔] 实现 chunking。
 - [ ] 使用 embedding 建索引。
 - [ ] 实现 retrieval。
 - [ ] 回答时附带 source / citation。
@@ -455,6 +456,9 @@ agent-harness-mini/
 - [ ] 写 20 个 QA eval cases。
 
 ### Must Read
+
+1. What's RAG
+【RAG 工作机制详解——一个高质量知识库背后的技术全流程】 [https://www.bilibili.com/video/BV1JLN2z4EZQ/?share_source=copy_web&vd_source=802d6bdcc1614352e3c83dd88e3c2b25]
 
 1. LlamaIndex: Introduction to RAG  
    重点看：为什么需要 RAG、ingestion、index、retrieval、response synthesis。

@@ -1,0 +1,9 @@
+Retrieval augmented generation is useful when the answer should be grounded in a known document collection.
+
+The system first loads documents, splits them into chunks, creates embeddings, and stores those embeddings in an index.
+
+At query time, the system retrieves the most relevant chunks and asks the model to answer only from those chunks.
+
+A grounded answer should include citations that point back to the retrieved source chunks.
+
+If the retrieved evidence is weak or empty, the system should say that it did not find support in the provided documents.
