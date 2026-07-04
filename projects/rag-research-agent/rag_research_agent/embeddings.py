@@ -79,13 +79,13 @@ def embed_chunk(
     """
     为单个 Chunk 生成 embedding。
     """
-
+    vector=embed_text_bge_micro(chunk.text)
     return EmbeddingResult(
         text_id=chunk.id,
-        vector=embed_text_bge_micro(chunk.text),
+        vector=vector,
         metadata={
-            "dimensions": dimensions,
-            "source_name": chunk.metadata["source_name"],
+            "dimensions": len(vector),
+            "source_name": chunk.metadata.get("source_name"),
             "document_id": chunk.document_id,
         },
     )
