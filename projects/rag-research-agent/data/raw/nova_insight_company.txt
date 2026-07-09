@@ -1,0 +1,16 @@
+Nova Insight Systems is a fictional software company used as sample data for RAG testing.
+
+The company builds AI workflow tools for small research teams, student labs, and early-stage startups. Its main product is a document intelligence platform that helps users search internal notes, summarize research material, and generate cited reports.
+
+Nova Insight Systems has four core business functions:
+
+1. Document ingestion: users can upload Markdown, TXT, PDF, and web-exported notes into a private workspace.
+2. Semantic retrieval: the platform creates embeddings for uploaded documents and retrieves relevant passages for user questions.
+3. Grounded answer generation: the system produces answers with citations that point back to original source chunks.
+4. Evaluation and monitoring: the platform records retrieval quality, citation coverage, latency, and failure cases.
+
+The company does not position itself as a general chatbot provider. Its main value is helping knowledge workers answer questions from trusted internal documents.
+
+The target customers are research assistants, technical writers, university project teams, and small companies that need lightweight knowledge-base automation without maintaining a large engineering team.
+
+The company's long-term roadmap includes hybrid retrieval, reranking, citation verification, permission-aware document access, and team-level analytics dashboards.

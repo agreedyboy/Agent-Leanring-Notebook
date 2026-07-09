@@ -430,11 +430,10 @@ agent-harness-mini/
 - [✔] 实现 chunking。
 
 - [✔] 使用 embedding 建索引。
-- [ ] 实现 retrieval。
-- [ ] 回答时附带 source / citation。
-- [ ] 处理检索为空的情况。
-- [ ] 避免 hallucinated citations。
-- [ ] 记录 query、retrieved chunks、final answer。
+- [✔] 实现 retrieval。
+- [✔] 回答时附带 source / citation。
+- [✔] 处理检索为空的情况。
+- [✔] 记录 query、retrieved chunks、final answer。
 - [ ] 写 20 个 QA eval cases。
 
 ### Must Read

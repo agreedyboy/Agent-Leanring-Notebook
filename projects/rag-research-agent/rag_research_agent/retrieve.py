@@ -89,7 +89,7 @@ def retrieve_by_vector(
     query_vector: list[float],
     index: VectorIndex,
     top_k: int = DEFAULT_TOP_K,
-    min_score : int = DEFAULT_MIN_SCORE,
+    min_score: float = DEFAULT_MIN_SCORE,
 ) -> list[RetrievalResult]:
     """
     使用 query vector 在 VectorIndex 中检索 top-k chunks。
@@ -118,7 +118,7 @@ def retrieve_by_vector(
 
     results: list[RetrievalResult] = []
 
-    for rank, (chunk_id, score) in enumerate(scored_items, start=1):
+    for rank, (chunk_id, score) in enumerate(scored_items[:top_k], start=1):
         chunk = index.get_chunk(chunk_id=chunk_id)
 
         if chunk is None:
@@ -144,7 +144,7 @@ def retrieve(
         query: str, 
         index: VectorIndex,
         top_k: int = DEFAULT_TOP_K,
-        min_score: int = DEFAULT_MIN_SCORE,
+        min_score: float = DEFAULT_MIN_SCORE,
 ) -> list[RetrievalResult]:
     
     """

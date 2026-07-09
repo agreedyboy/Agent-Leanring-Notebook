@@ -4,10 +4,8 @@ import hashlib
 import math
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
-
-from sentence_transformers import SentenceTransformer
-
 
 from .chunking import Chunk, chunk_documents
 from .documents import load_documents
@@ -16,13 +14,13 @@ from .documents import load_documents
 DEFAULT_EMBEDDING_DIMENSIONS = 128
 
 import os
-from sentence_transformers import SentenceTransformer
 
 # 1. 强行把下载渠道切到阿里 ModelScope 镜像，彻底避开 HuggingFace 的网络封锁和 401 报错
 os.environ["HF_ENDPOINT"] = "https://hf-mirror.com" 
 
-# 2. 传入一个真正的、体积仅约 100MB、且检索能力极强的工业级中文嵌入模型
-model = SentenceTransformer(r"D:\xjbx\Agent-Leanring-Notebook\projects\rag-research-agent\models\bge-small-zh")
+MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "bge-small-zh"
+_MODEL: Any | None = None
+_MODEL_LOAD_FAILED = False
 
 class EmbeddingError(ValueError):
     pass
@@ -66,9 +64,81 @@ def stable_token_hash(token: str) -> bytes:
 
     return hashlib.sha256(token.encode("utf-8")).digest()
 
+def tokenize(text: str) -> list[str]:
+    """
+    简单分词函数。
+
+    当 sentence-transformers 不可用时，使用它生成可复现的 hash embedding。
+    """
+
+    return re.findall(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]", text.lower())
+
+
+def embed_text_hash(
+    text: str,
+    dimensions: int = DEFAULT_EMBEDDING_DIMENSIONS,
+) -> list[float]:
+    """
+    备用 embedding 实现。
+
+    它不具备真正语义理解能力，但足够让 CLI 和检索链路在无外部依赖时跑通。
+    """
+
+    if dimensions <= 0:
+        raise EmbeddingError("dimensions must be greater than 0.")
+
+    tokens = tokenize(text)
+    if not tokens:
+        raise EmbeddingError("Cannot embed empty text.")
+
+    vector = [0.0] * dimensions
+    for token in tokens:
+        digest = stable_token_hash(token)
+        index = int.from_bytes(digest[:4], byteorder="big") % dimensions
+        sign = 1.0 if digest[4] % 2 == 0 else -1.0
+        vector[index] += sign
+
+    return l2_normalize(vector)
+
+
+def get_embedding_model() -> Any | None:
+    """
+    延迟加载本地 BGE 模型。
+
+    如果当前环境没有 sentence_transformers，返回 None，让调用方使用备用 hash embedding。
+    """
+
+    global _MODEL, _MODEL_LOAD_FAILED
+
+    if _MODEL is not None:
+        return _MODEL
+
+    if _MODEL_LOAD_FAILED:
+        return None
+
+    try:
+        from sentence_transformers import SentenceTransformer
+
+        _MODEL = SentenceTransformer(str(MODEL_PATH))
+    except Exception:
+        _MODEL_LOAD_FAILED = True
+        return None
+
+    return _MODEL
+
 
 def embed_text_bge_micro(text: str) -> list[float]:
-    # 内部自动生成生产级 BERT 语义向量并进行 L2 归一化
+    """
+    优先使用本地 BGE 模型生成向量。
+
+    如果依赖或模型不可用，自动回退到 hash embedding，保证学习项目的 CLI 可运行。
+    """
+
+    model = get_embedding_model()
+
+    if model is None:
+        return embed_text_hash(text)
+
     vector = model.encode(text, normalize_embeddings=True)
     return vector.tolist()
 
