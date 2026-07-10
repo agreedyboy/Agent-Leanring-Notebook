@@ -434,7 +434,7 @@ agent-harness-mini/
 - [✔] 回答时附带 source / citation。
 - [✔] 处理检索为空的情况。
 - [✔] 记录 query、retrieved chunks、final answer。
-- [ ] 写 20 个 QA eval cases。
+- [✔] 写 20 个 QA eval cases。
 
 ### Must Read
 

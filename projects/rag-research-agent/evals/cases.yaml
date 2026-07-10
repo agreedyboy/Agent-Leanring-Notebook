@@ -1,0 +1,43 @@
+version: 1
+
+defaults:
+  top_k: 5
+  min_score: 0.0
+
+cases:
+  - id: learner_profile_goal
+    query: "project owner learning profile RAG research agent"
+    expected:
+      top_source: learner_profile.md
+      expected_sources:
+        - learner_profile.md
+      min_results: 1
+
+  - id: company_business_functions
+    query: "Document ingestion semantic retrieval grounded answer generation evaluation monitoring"
+    expected:
+      expected_sources:
+        - nova_insight_company.txt
+      min_results: 1
+
+  - id: agent_loop_basics
+    query: "agent loop observe decide use tools stopping condition"
+    expected:
+      top_source: agent_basics.md
+      expected_sources:
+        - agent_basics.md
+      min_results: 1
+
+  - id: rag_grounding_notes
+    query: "retrieval augmented generation grounded citations provided documents"
+    expected:
+      expected_sources:
+        - rag_notes.txt
+      min_results: 1
+
+  - id: unrelated_stock_price_smoke
+    query: "What is Nova Insight Systems stock price?"
+    expected:
+      # This is not a strict unanswerable grader yet. It only ensures the retriever
+      # does not produce a very high-confidence match for unsupported stock data.
+      max_top_score: 0.3
