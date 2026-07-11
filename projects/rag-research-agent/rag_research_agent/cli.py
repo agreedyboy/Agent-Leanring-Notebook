@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import time
 from pathlib import Path
 from typing import Any
 
-from .answer import AnswerResult, answer_query
+from .answer import NO_EVIDENCE_ANSWER, AnswerResult, answer_query
 from .config import load_model_config
 from .documents import load_documents
 from .index import build_index_from_documents
@@ -28,6 +29,9 @@ DEFAULT_TOP_K = 3
 DEFAULT_MIN_SCORE = 0.5
 DEFAULT_TRACE_PATH = Path("traces/rag.jsonl")
 DEFAULT_EVAL_CASES_PATH = Path("evals/cases.yaml")
+DEFAULT_RETRIEVAL_MODE = "hybrid"
+DEFAULT_VECTOR_WEIGHT = 0.5
+DEFAULT_LEXICAL_WEIGHT = 0.5
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -67,8 +71,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--min-score",
         type=float,
         default=DEFAULT_MIN_SCORE,
-        help="Minimum cosine similarity score for retrieved chunks.",
+        help="Minimum score required for a retrieved chunk.",
     )
+    add_hybrid_retrieval_arguments(ask_parser)
     ask_parser.add_argument(
         "--provider",
         default=None,
@@ -137,10 +142,44 @@ def build_parser() -> argparse.ArgumentParser:
         "--min-score",
         type=float,
         default=0.0,
-        help="Default minimum similarity score per case.",
+        help="Default minimum retrieval score per case.",
+    )
+    add_hybrid_retrieval_arguments(eval_parser)
+    eval_parser.add_argument(
+        "--answer-eval",
+        action="store_true",
+        help="Call the chat model to check supported answers and unsupported-question refusal.",
+    )
+    eval_parser.add_argument(
+        "--provider",
+        default=None,
+        help="Model provider name from .env, used only with --answer-eval.",
     )
 
     return parser
+
+
+def add_hybrid_retrieval_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add retrieval controls shared by the ask and eval subcommands."""
+
+    parser.add_argument(
+        "--retrieval-mode",
+        choices=("vector", "hybrid"),
+        default=DEFAULT_RETRIEVAL_MODE,
+        help="Use embedding-only retrieval or hybrid vector plus BM25-lite retrieval.",
+    )
+    parser.add_argument(
+        "--vector-weight",
+        type=float,
+        default=DEFAULT_VECTOR_WEIGHT,
+        help="Weight assigned to vector similarity in hybrid retrieval.",
+    )
+    parser.add_argument(
+        "--lexical-weight",
+        type=float,
+        default=DEFAULT_LEXICAL_WEIGHT,
+        help="Weight assigned to BM25-lite score in hybrid retrieval.",
+    )
 
 
 def build_openai_client(provider: str | None = None):
@@ -238,12 +277,17 @@ def evaluate_retrieval_case(
     index,
     default_top_k: int,
     default_min_score: float,
+    retrieval_mode: str,
+    vector_weight: float,
+    lexical_weight: float,
+    client: Any | None = None,
+    model_id: str | None = None,
 ) -> dict[str, Any]:
     """
     Run one retrieval-only eval case.
 
-    This is a smoke eval, not a semantic answer grader. It checks whether the
-    retriever brings the expected document source into the top-k result set.
+    By default this is a retrieval smoke eval. When a model client is passed,
+    cases can additionally assert whether a question is supported by evidence.
     """
 
     case_id = case.get("id")
@@ -261,6 +305,9 @@ def evaluate_retrieval_case(
         index=index,
         top_k=top_k,
         min_score=min_score,
+        retrieval_mode=retrieval_mode,
+        vector_weight=vector_weight,
+        lexical_weight=lexical_weight,
     )
     sources = retrieved_source_names(results)
     top_score = results[0].score if results else None
@@ -293,6 +340,44 @@ def evaluate_retrieval_case(
     if max_top_score is not None and top_score is not None and top_score > float(max_top_score):
         notes.append(f"Expected top score <= {max_top_score}, got {top_score:.4f}.")
 
+    answer_result: AnswerResult | None = None
+    expected_answerability = expected.get("answerability")
+    if expected_answerability is not None:
+        if expected_answerability not in {"supported", "unsupported"}:
+            raise ValueError(
+                f"Case {case_id!r} has unsupported answerability value "
+                f"{expected_answerability!r}. Use 'supported' or 'unsupported'."
+            )
+
+        if client is not None and model_id is not None:
+            answer_result = answer_query(
+                client=client,
+                model_id=model_id,
+                query=query,
+                results=results,
+            )
+
+            if expected_answerability == "supported":
+                if not answer_result.ok:
+                    notes.append(
+                        "Expected a valid grounded answer, but answer guard returned "
+                        f"{answer_result.error_type!r}."
+                    )
+                elif answer_result.answer == NO_EVIDENCE_ANSWER:
+                    notes.append("Expected a supported answer, but the model refused to answer.")
+                elif not answer_result.citations:
+                    notes.append("Expected a supported answer with at least one citation.")
+            else:
+                if answer_result.answer != NO_EVIDENCE_ANSWER:
+                    notes.append(
+                        "Expected the exact no-evidence response for an unsupported question."
+                    )
+                elif not answer_result.ok:
+                    notes.append(
+                        "Expected a valid no-evidence response, but answer guard returned "
+                        f"{answer_result.error_type!r}."
+                    )
+
     return {
         "case_id": case_id,
         "query": query,
@@ -302,6 +387,13 @@ def evaluate_retrieval_case(
         "top_score": top_score,
         "top_source": top_source,
         "result_count": len(results),
+        "expected_answerability": expected_answerability,
+        "answer_evaluated": answer_result is not None,
+        "answer_ok": answer_result.ok if answer_result is not None else None,
+        "answer_error_type": (
+            answer_result.error_type if answer_result is not None else None
+        ),
+        "citation_count": len(answer_result.citations) if answer_result is not None else None,
     }
 
 
@@ -324,6 +416,13 @@ def format_eval_summary(results: list[dict[str, Any]]) -> str:
         if result["sources"]:
             lines.append("  sources=" + ", ".join(result["sources"]))
 
+        if result["answer_evaluated"]:
+            lines.append(
+                "  answer="
+                f"ok={result['answer_ok']} citations={result['citation_count']} "
+                f"error_type={result['answer_error_type']}"
+            )
+
         for note in result["notes"]:
             lines.append(f"  - {note}")
 
@@ -345,6 +444,9 @@ def ask_command(args: argparse.Namespace) -> int:
         chunk_overlap=args.chunk_overlap,
         top_k=args.top_k,
         min_score=args.min_score,
+        retrieval_mode=args.retrieval_mode,
+        vector_weight=args.vector_weight,
+        lexical_weight=args.lexical_weight,
         retrieval_only=args.retrieval_only,
     )
 
@@ -388,6 +490,9 @@ def ask_command(args: argparse.Namespace) -> int:
         index=index,
         top_k=args.top_k,
         min_score=args.min_score,
+        retrieval_mode=args.retrieval_mode,
+        vector_weight=args.vector_weight,
+        lexical_weight=args.lexical_weight,
     )
     emit_trace(
         tracer,
@@ -466,12 +571,23 @@ def eval_command(args: argparse.Namespace) -> int:
     default_top_k = int(defaults.get("top_k", args.top_k))
     default_min_score = float(defaults.get("min_score", args.min_score))
 
+    client = None
+    model_id = None
+    if args.answer_eval:
+        client, config = build_openai_client(provider=args.provider)
+        model_id = config.model_id
+
     results = [
         evaluate_retrieval_case(
             case=case,
             index=index,
             default_top_k=default_top_k,
             default_min_score=default_min_score,
+            retrieval_mode=args.retrieval_mode,
+            vector_weight=args.vector_weight,
+            lexical_weight=args.lexical_weight,
+            client=client,
+            model_id=model_id,
         )
         for case in cases
     ]
@@ -488,6 +604,16 @@ def eval_command(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.retrieval_mode == "hybrid":
+        if args.vector_weight < 0 or args.lexical_weight < 0:
+            parser.error("Hybrid retrieval weights must be non-negative.")
+        if not math.isclose(
+            args.vector_weight + args.lexical_weight,
+            1.0,
+            abs_tol=1e-9,
+        ):
+            parser.error("--vector-weight and --lexical-weight must add up to 1.0.")
 
     if args.command == "ask":
         return ask_command(args)

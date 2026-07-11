@@ -12,6 +12,7 @@ cases:
       expected_sources:
         - learner_profile.md
       min_results: 1
+      answerability: supported
 
   - id: company_business_functions
     query: "Document ingestion semantic retrieval grounded answer generation evaluation monitoring"
@@ -19,6 +20,7 @@ cases:
       expected_sources:
         - nova_insight_company.txt
       min_results: 1
+      answerability: supported
 
   - id: agent_loop_basics
     query: "agent loop observe decide use tools stopping condition"
@@ -27,6 +29,7 @@ cases:
       expected_sources:
         - agent_basics.md
       min_results: 1
+      answerability: supported
 
   - id: rag_grounding_notes
     query: "retrieval augmented generation grounded citations provided documents"
@@ -34,10 +37,11 @@ cases:
       expected_sources:
         - rag_notes.txt
       min_results: 1
+      answerability: supported
 
   - id: unrelated_stock_price_smoke
     query: "What is Nova Insight Systems stock price?"
     expected:
-      # This is not a strict unanswerable grader yet. It only ensures the retriever
-      # does not produce a very high-confidence match for unsupported stock data.
-      max_top_score: 0.3
+      # The company document is relevant to the entity, but contains no stock price.
+      # This assertion is evaluated only when `eval --answer-eval` is used.
+      answerability: unsupported

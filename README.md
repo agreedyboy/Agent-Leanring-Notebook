@@ -527,9 +527,9 @@ Answer sentence. [source: doc_a.md#chunk_003]
 
 ### Checklist
 
-- [ ] 实现 BM25 或 keyword retrieval。
-- [ ] 实现 embedding retrieval。
-- [ ] 实现简单 hybrid retrieval。
+- [✔] 实现 BM25 或 keyword retrieval。
+- [✔] 实现 embedding retrieval。
+- [✔] 实现简单 hybrid retrieval。
 - [ ] 实现 rerank。
 - [ ] 实现 citation verifier。
 - [ ] 实现 failed retrieval analysis。

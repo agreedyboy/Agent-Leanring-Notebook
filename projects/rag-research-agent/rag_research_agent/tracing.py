@@ -172,6 +172,7 @@ def summarize_retrieval_results(
 
         item = {
             "rank": getattr(result, "rank", None),
+            # "score": metadata.get("final_score"),
             "score": getattr(result, "score", None),
             "chunk_id": getattr(chunk, "id", None),
             "document_id": getattr(chunk, "document_id", None),
@@ -179,6 +180,9 @@ def summarize_retrieval_results(
             "source_path": metadata.get("source_path"),
             "start_char": getattr(chunk, "start_char", None),
             "end_char": getattr(chunk, "end_char", None),
+            # Hybrid retrieval attaches vector/BM25/final scores here. Keeping
+            # the complete small metadata object makes ranking decisions auditable.
+            "retrieval_metadata": getattr(result, "metadata", {}) or {},
         }
 
         if include_content:
