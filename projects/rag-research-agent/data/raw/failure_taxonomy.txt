@@ -1,0 +1,15 @@
+RAG Failure Taxonomy
+
+Ingestion failures happen before retrieval. Examples include an unsupported file type, a decoding error, missing metadata, or a PDF table that was not converted into usable text.
+
+Chunking failures happen when relevant evidence is split across boundaries or mixed with unrelated material. Very short chunks may lose context. Very long chunks can dilute embeddings and make a citation less precise.
+
+Retrieval failures happen when the correct chunk is absent from the candidate list. Hybrid retrieval can reduce some failures because BM25 helps with exact names while embeddings help with paraphrases.
+
+Rerank failures happen when the correct chunk is retrieved but ranked below less useful candidates. A cross-encoder reranker is often used after a fast candidate retrieval stage.
+
+Citation failures happen when an answer has no citation, cites a nonexistent chunk id, cites a chunk from another query, or cites a chunk that does not support the nearby claim.
+
+Synthesis failures happen when retrieval is correct but the language model summarizes evidence incorrectly. Abstention failures happen when the system invents an answer for unsupported evidence or refuses a question that the evidence could answer.
+
+Each trace should make it possible to distinguish these categories. A high retrieval score alone is not evidence that the user question is answerable.

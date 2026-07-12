@@ -106,6 +106,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include retrieved chunk text and generated answer in trace events.",
     )
 
+    ask_parser.add_argument(
+        "--strategy",
+        default="recursive",
+        choices=["fixed", "recursive"],
+        help="Choose the strategy of chunking, there offers fixed and recursive",
+    )
+
     eval_parser = subparsers.add_parser("eval", help="Run lightweight retrieval eval cases.")
     eval_parser.add_argument(
         "cases_path",
@@ -474,6 +481,7 @@ def ask_command(args: argparse.Namespace) -> int:
         documents=documents,
         chunk_size=args.chunk_size,
         chunk_overlap=args.chunk_overlap,
+        strategy=args.strategy,
     )
     emit_trace(
         tracer,

@@ -163,6 +163,7 @@ def build_index_from_documents(
     documents,
     chunk_size: int = 300,
     chunk_overlap : int = 50,
+    strategy: str = "fixed",
 )->VectorIndex:
     """
     一个便捷函数：从 Document 列表直接构建 VectorIndex。
@@ -179,6 +180,7 @@ def build_index_from_documents(
         documents=documents,
         chunk_size=chunk_size,
         chunk_overlap = chunk_overlap,
+        strategy=strategy
     )
     embeddings = embed_chunks(chunks=chunks)
 

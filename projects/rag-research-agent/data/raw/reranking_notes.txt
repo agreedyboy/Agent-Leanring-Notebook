@@ -1,0 +1,9 @@
+Reranking Notes
+
+Retrieval systems often use two stages. The first stage is designed for recall and speed. It returns a candidate pool such as the top ten or top twenty chunks. The second stage, called reranking, spends more computation deciding which candidate best answers the query.
+
+A cross-encoder reranker receives the query and one chunk together as a pair. Unlike a bi-encoder embedding model, it can use token-level interactions between the exact query wording and the passage. This often improves ranking quality when many chunks share broad RAG vocabulary.
+
+Reranking should not replace initial retrieval. Scoring every chunk with a cross-encoder is expensive as the corpus grows. Instead, run hybrid retrieval first, then rerank only a bounded candidate set, and finally send the top few passages to the answer model.
+
+Evaluation should show whether reranking helps. A useful failure case is when the correct source is present in the top ten candidates but is not in the top three. If the correct source is absent from the candidate pool, the problem is retrieval recall rather than reranking.
