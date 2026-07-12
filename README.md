@@ -95,7 +95,7 @@ CS undergraduate focused on LLM agent engineering. Built a minimal agent harness
 | A2A / ACP                        | 知道用途即可，不需要深入协议细节。              |
 | 大量论文综述                     | 只读关键论文摘要和核心思想。                    |
 | 复杂 MCP 生态                    | 只做轻量 demo，优先级低于主项目。               |
-| 只会调 LangChain / LlamaIndex    | 不足以证明 Agent 工程能力，必须有手写核心组件。 |
+| 只会调 LangChain / LlamaIndex    | 在不了解底层时不足以证明工程能力；完成手写基线后，应转向框架实践、源码阅读和可评估应用。 |
 
 ---
 
@@ -139,6 +139,31 @@ Gate C — Week 10 开始前：
 只有 Gate A 和 Gate B 都通过，才启动 Coding Review Agent 或 Web Research Agent。
 否则取消第三项目，把 Week 10-12 全部用于补两个 P0 项目的 README、eval、trace、examples、复现环境。
 ```
+
+---
+
+## 3.5 Foundation Complete: Move From Rebuilding to Reproduction
+
+截至 2026-07-12，底层实现训练已达到“足够理解并能解释”的目标：已经手写过 Agent loop、tool calling、trace、eval，以及 RAG 的文档解析、固定与递归分块、embedding、BM25-lite、向量检索、hybrid retrieval 和 RRF。
+
+后续不再为了练习而重复从零搭建同类框架组件。新的学习重心是：
+
+```text
+读懂成熟项目
+  -> 复现一个可运行的最小切片
+  -> 用 LangChain / LangGraph 实现应用工作流
+  -> 保留 trace、eval 和 failure analysis
+  -> 对照手写基线，解释框架替你解决了什么、又隐藏了什么
+```
+
+这不是放弃底层理解，而是把底层项目作为判断框架行为的对照基线。使用框架时必须仍能回答：chunking、retrieval、state、tool execution、retry、citation guard 和 evaluation 分别由哪个组件负责。
+
+从现在开始的执行原则：
+
+1. 新能力优先复现或阅读成熟实现，不重复手写已掌握的基础设施。
+2. 新应用优先使用 LangChain 的 loader / retriever / vector-store 接口，或 LangGraph 的 state graph 和 conditional edges。
+3. 每次框架实践都保留固定 eval cases 与 trace；框架能加速开发，但不能替代验证。
+4. Stage 5 的 citation verifier、failure analysis 和 eval 覆盖仍需完成，因为它们是 RAG 质量要求，不是重复造框架。
 
 ---
 
@@ -425,8 +450,16 @@ agent-harness-mini/
 
 ### Checklist
 
-- [✔] 支持 PDF / Markdown / TXT ingestion。
-  - PDF目前暂不支持，只支持.md与.text格式文件的解析
+### Current Status
+
+- [✔] 支持 Markdown / TXT ingestion；PDF parsing 仍是后续可选项。
+- [✔] 实现固定长度与递归分块，并可在 CLI 中切换策略。
+- [✔] 实现 embedding retrieval、BM25-lite、score-weighted hybrid retrieval 和 RRF。
+- [✔] 记录 query、retrieved chunks、retrieval metadata、final answer 与 citation guard 结果。
+- [ ] 当前有轻量 retrieval / answer eval；尚未达到 20 个 QA cases 和 5 个 unanswerable cases 的质量门槛。
+
+- [x] 支持 Markdown / TXT ingestion。
+  - PDF 目前不在当前项目范围内；如需处理 PDF，应作为独立 ingestion 扩展实现并加入 eval。
 - [✔] 实现 chunking。
 
 - [✔] 使用 embedding 建索引。
@@ -434,7 +467,7 @@ agent-harness-mini/
 - [✔] 回答时附带 source / citation。
 - [✔] 处理检索为空的情况。
 - [✔] 记录 query、retrieved chunks、final answer。
-- [✔] 写 20 个 QA eval cases。
+- [ ] 扩充到 20 个 QA eval cases，并覆盖至少 5 个 unanswerable cases。
 
 ### Must Read
 
@@ -530,6 +563,8 @@ Answer sentence. [source: doc_a.md#chunk_003]
 - [✔] 实现 BM25 或 keyword retrieval。
 - [✔] 实现 embedding retrieval。
 - [✔] 实现简单 hybrid retrieval。
+- [✔] 实现 RRF hybrid retrieval，并记录 vector rank、BM25 rank 和 RRF score。
+- [✔] 实现固定长度与递归分块策略，并可通过 eval 对比。
 - [ ] 实现 rerank。
 - [ ] 实现 citation verifier。
 - [ ] 实现 failed retrieval analysis。
@@ -605,6 +640,35 @@ def verify_citations(answer, retrieved_chunk_ids):
 - README 中展示至少 3 个失败案例和修复思路。
 - 能解释为什么你的 RAG 方案不是简单框架 demo。
 - 通过 Gate B 后才允许启动第三项目。
+
+---
+
+## Stage 5.5: Framework Reproduction and LangGraph Development
+
+目标：在已理解底层机制的前提下，开始使用成熟框架构建应用，而不是继续重复实现基础组件。
+
+这一阶段可以与 Stage 5 剩余的质量工作并行进行。它不是“跳过 eval 和 citation verifier”，而是把后续实现方式从手写基础设施切换到框架组合与源码对照。
+
+### Recommended Sequence
+
+1. 用 LangChain 复现当前 RAG 的一个最小流程：document loader、recursive text splitter、embedding、vector store、retriever 和 prompt assembly。
+2. 在相同语料与 eval cases 上，对比 LangChain 实现与当前手写实现的 chunk 数、top-k 来源、延迟和失败模式。
+3. 用 LangGraph 把 `retrieve -> answer -> verify` 表达为显式 state graph；当 evidence 不足或 citation 无效时，通过 conditional edge 进入拒答或修复节点。
+4. 阅读并复现一个小型、可运行的开源项目切片。目标是理解状态、节点、工具和评估如何组合，不是复制一个大型仓库的全部功能。
+
+### Rules
+
+- 优先复现官方教程、维护活跃且规模可控的项目；不要从复杂 multi-agent 仓库开始。
+- 保留当前 `rag-research-agent` 作为 baseline，不把它重写成框架项目。
+- 新框架项目单独放在 `projects/` 下，并保留 README、固定 eval、trace 和明确的 failure cases。
+- 先用 LangChain 处理 RAG 组件组合；需要多步骤状态、条件分支、重试或人工确认时再引入 LangGraph。
+
+### Completion Signal
+
+```text
+能够用自己的话把 LangChain / LangGraph 的每个关键组件
+映射回已手写过的对应机制，并说明为什么此处使用框架比继续手写更合适。
+```
 
 ---
 

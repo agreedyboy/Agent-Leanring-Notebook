@@ -32,6 +32,9 @@ DEFAULT_EVAL_CASES_PATH = Path("evals/cases.yaml")
 DEFAULT_RETRIEVAL_MODE = "hybrid"
 DEFAULT_VECTOR_WEIGHT = 0.5
 DEFAULT_LEXICAL_WEIGHT = 0.5
+DEFAULT_RRF_CANDIDATE_K = 20
+DEFAULT_RRF_K = 60
+DEFAULT_MIN_RRF_SCORE = 0.0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -178,9 +181,9 @@ def add_hybrid_retrieval_arguments(parser: argparse.ArgumentParser) -> None:
 
     parser.add_argument(
         "--retrieval-mode",
-        choices=("vector", "hybrid"),
+        choices=("vector", "hybrid", "hybrid_rrf"),
         default=DEFAULT_RETRIEVAL_MODE,
-        help="Use embedding-only retrieval or hybrid vector plus BM25-lite retrieval.",
+        help="Use vector retrieval, score-weighted hybrid retrieval, or RRF hybrid retrieval.",
     )
     parser.add_argument(
         "--vector-weight",
@@ -193,6 +196,24 @@ def add_hybrid_retrieval_arguments(parser: argparse.ArgumentParser) -> None:
         type=float,
         default=DEFAULT_LEXICAL_WEIGHT,
         help="Weight assigned to BM25-lite score in hybrid retrieval.",
+    )
+    parser.add_argument(
+        "--rrf-candidate-k",
+        type=int,
+        default=DEFAULT_RRF_CANDIDATE_K,
+        help="Candidates recalled by each retriever before RRF fusion.",
+    )
+    parser.add_argument(
+        "--rrf-k",
+        type=int,
+        default=DEFAULT_RRF_K,
+        help="RRF smoothing constant, used only with hybrid_rrf retrieval.",
+    )
+    parser.add_argument(
+        "--min-rrf-score",
+        type=float,
+        default=DEFAULT_MIN_RRF_SCORE,
+        help="Minimum RRF score, used only with hybrid_rrf retrieval.",
     )
 
 
@@ -286,6 +307,21 @@ def retrieved_source_names(results: list[RetrievalResult]) -> list[str]:
     return [source_name_for(result) for result in results]
 
 
+def best_source_rank(
+    results: list[RetrievalResult],
+    source_names: list[str],
+) -> int | None:
+    """Return the best rank held by any expected source in this result set."""
+
+    expected = set(source_names)
+    ranks = [
+        result.rank
+        for result in results
+        if source_name_for(result) in expected
+    ]
+    return min(ranks) if ranks else None
+
+
 def evaluate_retrieval_case(
     case: dict[str, Any],
     index,
@@ -294,6 +330,9 @@ def evaluate_retrieval_case(
     retrieval_mode: str,
     vector_weight: float,
     lexical_weight: float,
+    rrf_candidate_k: int,
+    rrf_k: int,
+    min_rrf_score: float,
     client: Any | None = None,
     model_id: str | None = None,
 ) -> dict[str, Any]:
@@ -322,6 +361,9 @@ def evaluate_retrieval_case(
         retrieval_mode=retrieval_mode,
         vector_weight=vector_weight,
         lexical_weight=lexical_weight,
+        rrf_candidate_k=rrf_candidate_k,
+        rrf_k=rrf_k,
+        min_rrf_score=min_rrf_score,
     )
     sources = retrieved_source_names(results)
     top_score = results[0].score if results else None
@@ -353,6 +395,29 @@ def evaluate_retrieval_case(
     max_top_score = expected.get("max_top_score")
     if max_top_score is not None and top_score is not None and top_score > float(max_top_score):
         notes.append(f"Expected top score <= {max_top_score}, got {top_score:.4f}.")
+
+    expected_rank_sources = (
+        expected.get("expected_sources")
+        or expected.get("expected_sources_any")
+        or []
+    )
+    best_expected_source_rank = best_source_rank(results, expected_rank_sources)
+    max_expected_source_rank = expected.get("max_expected_source_rank")
+
+    if max_expected_source_rank is not None:
+        if not expected_rank_sources:
+            raise ValueError(
+                f"Case {case_id!r} uses max_expected_source_rank but defines "
+                "no expected_sources or expected_sources_any."
+            )
+        if (
+            best_expected_source_rank is None
+            or best_expected_source_rank > int(max_expected_source_rank)
+        ):
+            notes.append(
+                f"Expected an expected source at rank <= {max_expected_source_rank}, "
+                f"got {best_expected_source_rank}."
+            )
 
     answer_result: AnswerResult | None = None
     expected_answerability = expected.get("answerability")
@@ -400,6 +465,7 @@ def evaluate_retrieval_case(
         "sources": sources,
         "top_score": top_score,
         "top_source": top_source,
+        "best_expected_source_rank": best_expected_source_rank,
         "result_count": len(results),
         "expected_answerability": expected_answerability,
         "answer_evaluated": answer_result is not None,
@@ -424,7 +490,8 @@ def format_eval_summary(results: list[dict[str, Any]]) -> str:
         score_text = "none" if score is None else f"{score:.4f}"
         lines.append(
             f"{status} {result['case_id']} "
-            f"top_source={result['top_source']} top_score={score_text}"
+            f"top_source={result['top_source']} top_score={score_text} "
+            f"best_expected_source_rank={result['best_expected_source_rank']}"
         )
 
         if result["sources"]:
@@ -461,6 +528,9 @@ def ask_command(args: argparse.Namespace) -> int:
         retrieval_mode=args.retrieval_mode,
         vector_weight=args.vector_weight,
         lexical_weight=args.lexical_weight,
+        rrf_candidate_k=args.rrf_candidate_k,
+        rrf_k=args.rrf_k,
+        min_rrf_score=args.min_rrf_score,
         retrieval_only=args.retrieval_only,
     )
 
@@ -508,6 +578,9 @@ def ask_command(args: argparse.Namespace) -> int:
         retrieval_mode=args.retrieval_mode,
         vector_weight=args.vector_weight,
         lexical_weight=args.lexical_weight,
+        rrf_candidate_k=args.rrf_candidate_k,
+        rrf_k=args.rrf_k,
+        min_rrf_score=args.min_rrf_score,
     )
     emit_trace(
         tracer,
@@ -602,6 +675,9 @@ def eval_command(args: argparse.Namespace) -> int:
             retrieval_mode=args.retrieval_mode,
             vector_weight=args.vector_weight,
             lexical_weight=args.lexical_weight,
+            rrf_candidate_k=args.rrf_candidate_k,
+            rrf_k=args.rrf_k,
+            min_rrf_score=args.min_rrf_score,
             client=client,
             model_id=model_id,
         )
@@ -621,7 +697,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    if args.retrieval_mode == "hybrid":
+    if args.retrieval_mode in {"hybrid", "hybrid_rrf"}:
         if args.vector_weight < 0 or args.lexical_weight < 0:
             parser.error("Hybrid retrieval weights must be non-negative.")
         if not math.isclose(

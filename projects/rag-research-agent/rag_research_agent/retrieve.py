@@ -396,7 +396,7 @@ def retrieve_hybrid(
 
     return results
 
-def retrieve_hybrid_RRF(
+def retrieve_hybrid_rrf(
     query: str,
     query_vector: list[float],
     index: VectorIndex,
@@ -404,19 +404,26 @@ def retrieve_hybrid_RRF(
     candidate_k: int = 20,
     rrf_k: int = 60,
     min_rrf_score: float = 0.0,
+    vector_weight: float = 0.5,
+    lexical_weight: float = 0.5,
 ) -> list[RetrievalResult]:
     """
-    Retrieve chunks with hybrid scoring.
+    Retrieve chunks with reciprocal-rank fusion.
 
-    hybrid score = vector_weight * vector_score + lexical_weight * bm25_score
+    Vector and BM25 candidates are ranked independently. RRF combines their
+    ranks instead of mixing score scales directly:
 
-    vector_score:
-        由 embedding cosine similarity 提供，擅长语义相似。
-    bm25_score:
-        由 BM25-lite 提供，擅长精确关键词命中。
-    final_score:
-        两者加权后的最终排序分数。
+        vector_weight / (rrf_k + vector_rank)
+        + lexical_weight / (rrf_k + bm25_rank)
     """
+    if top_k <= 0:
+        raise RetrievalError("top_k must be greater than 0.")
+
+    validate_hybrid_weights(
+        vector_weight=vector_weight,
+        lexical_weight=lexical_weight,
+    )
+
     chunks = [
         index.get_chunk(chunk_id)
         for chunk_id in index.chunk_ids()
@@ -426,8 +433,8 @@ def retrieve_hybrid_RRF(
 
     bm25_stats = build_bm25_stats(chunks)
 
-    # 先分别计算两套分数，再统一归一化和融合。
-    # 不要边遍历边排序，否则中间状态会影响最终排名。
+    # Each retriever produces an independent candidate ranking. Unlike the
+    # score-weighted hybrid mode, RRF does not normalize or add raw scores.
     vector_scores: dict[str, float] = {}
     bm25_scores: dict[str, float] = {}
 
@@ -497,10 +504,10 @@ def retrieve_hybrid_RRF(
         rrf_score = 0.0
 
         if vector_rank is not None:
-            rrf_score += 1/(rrf_k + vector_rank)
+            rrf_score += vector_weight / (rrf_k + vector_rank)
         
         if bm25_rank is not None:
-            rrf_score += 1/(rrf_k + bm25_rank)
+            rrf_score += lexical_weight / (rrf_k + bm25_rank)
 
         if rrf_score >= min_rrf_score:
             scored_items.append((chunk_id, rrf_score))
@@ -528,6 +535,8 @@ def retrieve_hybrid_RRF(
                     "retrieval_mode": "hybrid_rrf",
                     "candidate_k": candidate_k,
                     "rrf_k": rrf_k,
+                    "vector_weight": vector_weight,
+                    "lexical_weight": lexical_weight,
                     "vector_rank": vector_ranks.get(chunk_id),
                     "bm25_rank": bm25_ranks.get(chunk_id),
                     "vector_score": vector_scores.get(chunk_id),
@@ -547,6 +556,9 @@ def retrieve(
         retrieval_mode: str = "hybrid_rrf",
         vector_weight: float = 0.5,
         lexical_weight: float = 0.5,
+        rrf_candidate_k: int = 20,
+        rrf_k: int = 60,
+        min_rrf_score: float = 0.0,
 ) -> list[RetrievalResult]:
     
     """
@@ -557,7 +569,8 @@ def retrieve(
 
     retrieval_mode:
         "vector" 只使用 embedding cosine similarity。
-        "hybrid" 同时使用 vector score 和 BM25-lite lexical score。
+        "hybrid" 直接加权 vector score 和 BM25-lite lexical score。
+        "hybrid_rrf" 使用 reciprocal-rank fusion 融合两路候选排名。
     """
 
     query = query.strip()
@@ -587,15 +600,17 @@ def retrieve(
         )
     
     if retrieval_mode == "hybrid_rrf":
-        return retrieve_hybrid_RRF(
-        query=query,
-        query_vector=query_vector,
-        index=index,
-        top_k=top_k,
-        candidate_k=20,
-        rrf_k=60,
-        min_rrf_score=0.0,
-    )
+        return retrieve_hybrid_rrf(
+            query=query,
+            query_vector=query_vector,
+            index=index,
+            top_k=top_k,
+            candidate_k=rrf_candidate_k,
+            rrf_k=rrf_k,
+            min_rrf_score=min_rrf_score,
+            vector_weight=vector_weight,
+            lexical_weight=lexical_weight,
+        )
 
     raise RetrievalError(f"Unsupported retrieval_mode: {retrieval_mode}")
 

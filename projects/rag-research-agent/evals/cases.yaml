@@ -12,6 +12,7 @@ cases:
       expected_sources:
         - learner_profile.md
       min_results: 1
+      max_expected_source_rank: 3
       answerability: supported
 
   - id: company_business_functions
@@ -20,6 +21,7 @@ cases:
       expected_sources:
         - nova_insight_company.txt
       min_results: 1
+      max_expected_source_rank: 3
       answerability: supported
 
   - id: agent_loop_basics
@@ -29,6 +31,7 @@ cases:
       expected_sources:
         - agent_basics.md
       min_results: 1
+      max_expected_source_rank: 3
       answerability: supported
 
   - id: rag_grounding_notes
@@ -37,6 +40,7 @@ cases:
       expected_sources:
         - rag_notes.txt
       min_results: 1
+      max_expected_source_rank: 3
       answerability: supported
 
   - id: unrelated_stock_price_smoke
