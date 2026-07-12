@@ -163,6 +163,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Model provider name from .env, used only with --answer-eval.",
     )
 
+    eval_parser.add_argument(
+        "--strategy",
+        default="recursive",
+        choices=["fixed", "recursive"],
+        help="Choose the strategy of chunking, there offers fixed and recursive",
+    )
+
     return parser
 
 
@@ -574,6 +581,7 @@ def eval_command(args: argparse.Namespace) -> int:
         documents=documents,
         chunk_size=args.chunk_size,
         chunk_overlap=args.chunk_overlap,
+        strategy=args.strategy,
     )
 
     default_top_k = int(defaults.get("top_k", args.top_k))

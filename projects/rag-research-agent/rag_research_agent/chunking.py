@@ -383,7 +383,7 @@ def chunk_documents(
 
 if __name__ == "__main__":
     documents = load_documents(r"D:\xjbx\Agent-Leanring-Notebook\projects\rag-research-agent\data\raw")
-    chunks = chunk_documents(documents=documents, chunk_size=180, chunk_overlap=20,strategy="recursive")
+    chunks = chunk_documents(documents=documents, chunk_size=250, chunk_overlap=40,strategy="recursive")
 
     for chunk in chunks[:5]:
         print(chunk.id, chunk.metadata.get("source_name", None), chunk.start_char, chunk.end_char)

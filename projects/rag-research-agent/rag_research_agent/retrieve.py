@@ -290,6 +290,8 @@ def normalize_scores(scores: dict[str, float]) -> dict[str, float]:
         for key, value in scores.items()
     }
 
+
+
 def retrieve_hybrid(
         query: str,
         query_vector: list[float],
@@ -394,13 +396,155 @@ def retrieve_hybrid(
 
     return results
 
+def retrieve_hybrid_RRF(
+    query: str,
+    query_vector: list[float],
+    index: VectorIndex,
+    top_k: int = DEFAULT_TOP_K,
+    candidate_k: int = 20,
+    rrf_k: int = 60,
+    min_rrf_score: float = 0.0,
+) -> list[RetrievalResult]:
+    """
+    Retrieve chunks with hybrid scoring.
+
+    hybrid score = vector_weight * vector_score + lexical_weight * bm25_score
+
+    vector_score:
+        由 embedding cosine similarity 提供，擅长语义相似。
+    bm25_score:
+        由 BM25-lite 提供，擅长精确关键词命中。
+    final_score:
+        两者加权后的最终排序分数。
+    """
+    chunks = [
+        index.get_chunk(chunk_id)
+        for chunk_id in index.chunk_ids()
+    ]
+
+    chunks = [chunk for chunk in chunks if chunk is not None]
+
+    bm25_stats = build_bm25_stats(chunks)
+
+    # 先分别计算两套分数，再统一归一化和融合。
+    # 不要边遍历边排序，否则中间状态会影响最终排名。
+    vector_scores: dict[str, float] = {}
+    bm25_scores: dict[str, float] = {}
+
+    for chunk in chunks:
+        chunk_vector = index.get_vector(chunk.id)
+
+        if chunk_vector is None:
+            continue
+
+        vector_scores[chunk.id] = cosine_similarity(query_vector, chunk_vector)
+
+        bm25_scores[chunk.id] = bm25_lite_score(
+            query=query,
+            chunk=chunk,
+            stats=bm25_stats,
+        )
+
+    if candidate_k <= 0:
+        raise RetrievalError("candidate_k must be greater than 0.")
+
+    if candidate_k < top_k:
+        raise RetrievalError("candidate_k must be greater than or equal to top_k.")
+
+    if rrf_k <= 0:
+        raise RetrievalError("rrf_k must be greater than 0.")
+
+    if min_rrf_score < 0:
+        raise RetrievalError("min_rrf_score must be greater than or equal to 0.")
+    
+    # 两路检索各自独立排序。
+    vector_candidates = sorted(
+        vector_scores.items(),
+        key=lambda item: (-item[1], item[0]),
+    )[:candidate_k]
+
+    # BM25 为 0 代表没有任何词法命中，不让它进入 lexical candidate pool。
+    bm25_candidates = sorted(
+        (
+            (chunk_id, score)
+            for chunk_id, score in bm25_scores.items()
+            if score > 0
+        ),
+        key=lambda item: (-item[1], item[0]),
+    )[:candidate_k]
+
+
+    # rank 从 1 开始，供 RRF 计算使用。
+    vector_ranks = {
+        chunk_id: rank
+        for rank, (chunk_id, _) in enumerate(vector_candidates, start=1)
+    }
+    bm25_ranks = {
+        chunk_id: rank
+        for rank, (chunk_id, _) in enumerate(bm25_candidates, start=1)
+    }
+
+    # 只融合任一路召回的候选 chunk。
+    candidate_ids = set(vector_ranks) | set(bm25_ranks)
+
+
+    scored_items: list[tuple[str, float]] = []
+
+    for chunk_id in candidate_ids:
+        vector_rank = vector_ranks.get(chunk_id)
+        bm25_rank = bm25_ranks.get(chunk_id)
+
+        rrf_score = 0.0
+
+        if vector_rank is not None:
+            rrf_score += 1/(rrf_k + vector_rank)
+        
+        if bm25_rank is not None:
+            rrf_score += 1/(rrf_k + bm25_rank)
+
+        if rrf_score >= min_rrf_score:
+            scored_items.append((chunk_id, rrf_score))
+     
+    # RRF 最终排序；chunk_id 是稳定的 tie-breaker。
+    scored_items.sort(key=lambda item: (-item[1], item[0]))
+
+    results: list[RetrievalResult] = []
+
+    for final_rank, (chunk_id, rrf_score) in enumerate(scored_items[:top_k], start=1):
+        chunk = index.get_chunk(chunk_id=chunk_id)
+
+        if chunk is None:
+            continue
+
+        results.append(
+            RetrievalResult(
+                rank = final_rank,
+                chunk = chunk,
+                score = rrf_score,
+                metadata={
+                    "chunk_id": chunk_id,
+                    "source_name": chunk.metadata.get("source_name"),
+                    "document_id": chunk.document_id,
+                    "retrieval_mode": "hybrid_rrf",
+                    "candidate_k": candidate_k,
+                    "rrf_k": rrf_k,
+                    "vector_rank": vector_ranks.get(chunk_id),
+                    "bm25_rank": bm25_ranks.get(chunk_id),
+                    "vector_score": vector_scores.get(chunk_id),
+                    "bm25_score": bm25_scores.get(chunk_id),
+                    "rrf_score": rrf_score,
+                }
+            )
+        )
+
+    return results
 
 def retrieve(
         query: str, 
         index: VectorIndex,
         top_k: int = DEFAULT_TOP_K,
         min_score: float = DEFAULT_MIN_SCORE,
-        retrieval_mode: str = "hybrid",
+        retrieval_mode: str = "hybrid_rrf",
         vector_weight: float = 0.5,
         lexical_weight: float = 0.5,
 ) -> list[RetrievalResult]:
@@ -441,6 +585,17 @@ def retrieve(
             vector_weight=vector_weight,
             lexical_weight=lexical_weight,
         )
+    
+    if retrieval_mode == "hybrid_rrf":
+        return retrieve_hybrid_RRF(
+        query=query,
+        query_vector=query_vector,
+        index=index,
+        top_k=top_k,
+        candidate_k=20,
+        rrf_k=60,
+        min_rrf_score=0.0,
+    )
 
     raise RetrievalError(f"Unsupported retrieval_mode: {retrieval_mode}")
 
@@ -451,9 +606,11 @@ if __name__ == "__main__":
 
     documents = load_documents(r"D:\xjbx\Agent-Leanring-Notebook\projects\rag-research-agent\data\raw")
 
-    index = build_index_from_documents(documents=documents, chunk_size=300, chunk_overlap=50)
+    index = build_index_from_documents(documents=documents, chunk_size=200, chunk_overlap=40, strategy="recursive")
 
-    results = retrieve("What is Retrieval Augmented Generation?", index, top_k=3, min_score=0.1)
+    # results = retrieve("What is Retrieval Augmented Generation?", index, top_k=3, min_score=0.1)
+
+    results = retrieve("What is RedMi stock price?", index, top_k=3, min_score=0.1)
 
     for result in results:
         print(f"rank> {result.rank}  score> {result.score}  chunk_id> {result.chunk.id}")
